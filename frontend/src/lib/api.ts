@@ -1,7 +1,7 @@
 const renderUrl = 'https://c-t-back.onrender.com/api';
 const local = "http://localhost:8000/api";
 
-const BASE = true ? local : renderUrl;
+const BASE = false ? local : renderUrl;
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
