@@ -159,20 +159,20 @@ export default function Checkout() {
     }
 
     setLoadingShipping(true)
-        setShippingError(null)
-        
+    setShippingError(null)
+
     setTimeout(() => {
       setShippingOptions([STATIC_SHIPPING_OPTION])
       setSelectedShippingOption(STATIC_SHIPPING_OPTION.serviceCode)
       setShippingCost(STATIC_SHIPPING_OPTION.cost)
-            setTransitInfo({
+      setTransitInfo({
         transitDays: STATIC_SHIPPING_OPTION.transitDays,
         estimatedDelivery: STATIC_SHIPPING_OPTION.estimatedDelivery,
         deliveryTime: STATIC_SHIPPING_OPTION.deliveryTime,
         isGuaranteed: STATIC_SHIPPING_OPTION.isGuaranteed,
         serviceName: STATIC_SHIPPING_OPTION.serviceName,
       })
-        setLoadingShipping(false)
+      setLoadingShipping(false)
     }, 250)
   }, [selectedAddressId, userAddresses])
 
