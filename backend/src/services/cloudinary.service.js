@@ -25,7 +25,7 @@ export const configureCloudinary = () => {
   return cloudinary;
 };
 
-export const uploadImage = async (filePath) => {
+export const uploadImage = async (filePath, folder = 'customtees/products') => {
   try {
     console.log('☁️ Cloudinary upload starting for file:', filePath);
     
@@ -35,7 +35,7 @@ export const uploadImage = async (filePath) => {
     // }
     
     const res = await cloudinary.uploader.upload(filePath, { 
-      folder: 'customtees/products',
+      folder,
       resource_type: 'auto'
     });
     
@@ -55,6 +55,38 @@ export const uploadImage = async (filePath) => {
       filePath: filePath
     });
     throw new Error(`Cloudinary upload failed: ${error.message}`);
+  }
+};
+
+export const uploadFile = async (filePath, {
+  folder = 'customtees/files',
+  resourceType = 'raw',
+  useFilename = true,
+  uniqueFilename = false,
+} = {}) => {
+  try {
+    console.log('☁️ Cloudinary file upload starting:', { filePath, folder, resourceType });
+    const res = await cloudinary.uploader.upload(filePath, {
+      folder,
+      resource_type: resourceType,
+      use_filename: useFilename,
+      unique_filename: uniqueFilename,
+      overwrite: true,
+    });
+    console.log('✅ Cloudinary file upload successful:', {
+      url: res.secure_url,
+      public_id: res.public_id,
+      resource_type: res.resource_type,
+      size: res.bytes,
+    });
+    return { url: res.secure_url, public_id: res.public_id };
+  } catch (error) {
+    console.error('❌ Cloudinary file upload failed:', {
+      message: error.message,
+      http_code: error.http_code,
+      filePath,
+    });
+    throw new Error(`Cloudinary file upload failed: ${error.message}`);
   }
 };
 

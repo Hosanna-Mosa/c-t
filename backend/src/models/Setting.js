@@ -13,6 +13,7 @@ const settingSchema = new mongoose.Schema(
     homeBackground: { type: imageSchema, required: false },
     homePoster: { type: imageSchema, required: false },
     designBackground: { type: imageSchema, required: false },
+    newsItems: { type: [String], default: [] },
   },
   { timestamps: true }
 );

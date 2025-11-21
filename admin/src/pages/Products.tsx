@@ -16,6 +16,8 @@ type Product = {
     color: string
     colorCode: string
     images: Array<{ url: string; public_id: string }>
+    frontImages?: Array<{ url: string; public_id: string }>
+    backImages?: Array<{ url: string; public_id: string }>
   }>
   createdAt: string
   updatedAt: string
@@ -221,7 +223,7 @@ export function Products() {
 
     try {
       const product = products.find(p => p._id === productId)
-      if (!product) return
+      if (!product || !product.variants) return
 
       const updatedVariants = product.variants.filter((_, index) => index !== variantIndex)
       await api.updateProduct(productId, { variants: updatedVariants })
@@ -442,7 +444,7 @@ export function Products() {
               
               <div className="form-row">
                 <label>
-                  Price (₹) *
+                  Price ($) *
                   <input
                     type="number"
                     value={formData.price}
@@ -543,7 +545,7 @@ export function Products() {
                 
                 <div className="detail-row">
                   <span className="label">Price:</span>
-                  <span className="value">₹{product.price.toFixed(2)}</span>
+                  <span className="value">${product.price.toFixed(2)}</span>
                 </div>
                 
                 <div className="detail-row">
@@ -683,7 +685,7 @@ export function Products() {
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h3>{editingVariant?.variantIndex >= 0 ? 'Edit Variant' : 'Add Variant'}</h3>
+              <h3>{editingVariant && editingVariant.variantIndex >= 0 ? 'Edit Variant' : 'Add Variant'}</h3>
               <button className="close-btn" onClick={handleVariantCancel}>×</button>
             </div>
             
@@ -822,7 +824,7 @@ export function Products() {
                       Uploading Images...
                     </>
                   ) : (
-                    editingVariant?.variantIndex >= 0 ? 'Update' : 'Add'
+                    editingVariant && editingVariant.variantIndex >= 0 ? 'Update' : 'Add'
                   )}
                 </button>
               </div>

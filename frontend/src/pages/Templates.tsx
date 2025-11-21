@@ -1,283 +1,315 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, Palette, Shirt, Star } from 'lucide-react';
-import { fetchProducts } from '@/lib/api';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { fetchProducts, fetchTemplates } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Image as ImageIcon,
+  PackageSearch,
+  Search,
+  Shirt,
+  Sparkles,
+} from 'lucide-react';
 
 interface Template {
-  id: string;
+  _id: string;
+  name?: string;
+  image: { url: string; public_id: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Product {
+  _id: string;
   name: string;
-  category: string;
-  image: string;
+  slug: string;
+  description?: string;
   price: number;
-  rating: number;
-  tags: string[];
-  description: string;
+  variants: Array<{
+    color: string;
+    colorCode: string;
+    images: Array<{ url: string; public_id: string }>;
+  }>;
 }
 
 export default function Templates() {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
-
-  const categories = [
-    'all',
-    'business',
-    'casual',
-    'sports',
-    'vintage',
-    'minimalist',
-    'artistic',
-    'humor',
-    'custom'
-  ];
-
-  const sampleTemplates: Template[] = [
-    {
-      id: '1',
-      name: 'Classic Business Logo',
-      category: 'business',
-      image: '/placeholder.svg',
-      price: 299,
-      rating: 4.8,
-      tags: ['professional', 'corporate', 'clean'],
-      description: 'Clean and professional design perfect for business attire'
-    },
-    {
-      id: '2',
-      name: 'Vintage Band Tee',
-      category: 'vintage',
-      image: '/placeholder.svg',
-      price: 399,
-      rating: 4.6,
-      tags: ['retro', 'music', 'grunge'],
-      description: 'Retro-inspired design with vintage band aesthetics'
-    },
-    {
-      id: '3',
-      name: 'Minimalist Quote',
-      category: 'minimalist',
-      image: '/placeholder.svg',
-      price: 199,
-      rating: 4.9,
-      tags: ['simple', 'typography', 'inspirational'],
-      description: 'Simple typography design with inspirational quotes'
-    },
-    {
-      id: '4',
-      name: 'Sports Team Pride',
-      category: 'sports',
-      image: '/placeholder.svg',
-      price: 349,
-      rating: 4.7,
-      tags: ['team', 'sports', 'pride'],
-      description: 'Show your team spirit with this dynamic sports design'
-    },
-    {
-      id: '5',
-      name: 'Artistic Abstract',
-      category: 'artistic',
-      image: '/placeholder.svg',
-      price: 449,
-      rating: 4.5,
-      tags: ['abstract', 'art', 'creative'],
-      description: 'Unique abstract design for creative individuals'
-    },
-    {
-      id: '6',
-      name: 'Funny Meme Design',
-      category: 'humor',
-      image: '/placeholder.svg',
-      price: 249,
-      rating: 4.8,
-      tags: ['funny', 'meme', 'humor'],
-      description: 'Light-hearted design that brings smiles'
-    }
-  ];
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading templates
-    setTimeout(() => {
-      setTemplates(sampleTemplates);
-      setFilteredTemplates(sampleTemplates);
-      setLoading(false);
-    }, 1000);
+    const loadTemplates = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchTemplates();
+        setTemplates(data);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load templates');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplates();
   }, []);
 
-  useEffect(() => {
-    let filtered = templates;
+  const filteredTemplates = useMemo(() => {
+    if (!searchTerm) return templates;
+    const term = searchTerm.toLowerCase();
+    return templates.filter((template) =>
+      (template.name || 'template').toLowerCase().includes(term)
+    );
+  }, [templates, searchTerm]);
 
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(template =>
-        template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+  const handleUseTemplate = async (template: Template) => {
+    setSelectedTemplate(template);
+    setDialogOpen(true);
+
+    if (products.length === 0 && !productsLoading) {
+      try {
+        setProductsLoading(true);
+        const data = await fetchProducts();
+        setProducts(data);
+      } catch (e: any) {
+        setProductsError(e.message || 'Failed to load products');
+      } finally {
+        setProductsLoading(false);
+      }
+    }
+  };
+
+  const handleSelectProduct = (product: Product) => {
+    if (!selectedTemplate) return;
+    setDialogOpen(false);
+    navigate('/customize', {
+      state: {
+        templateSelection: {
+          templateId: selectedTemplate._id,
+          imageUrl: selectedTemplate.image.url,
+          productId: product._id,
+        },
+      },
+    });
+  };
+
+  const handlePreview = (template: Template) => {
+    window.open(template.image.url, '_blank', 'noopener');
+  };
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="h-48 w-full" />
+              <CardContent className="p-4 space-y-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       );
     }
 
-    // Filter by category
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(template => template.category === selectedCategory);
+    if (error) {
+      return (
+        <Card className="border-destructive/20 bg-destructive/5">
+          <CardContent className="py-6 text-center text-destructive">
+            {error}
+          </CardContent>
+        </Card>
+      );
     }
 
-    setFilteredTemplates(filtered);
-  }, [searchTerm, selectedCategory, templates]);
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${
-          i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-        }`}
-      />
-    ));
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8 flex-1">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading templates...</p>
+    if (filteredTemplates.length === 0) {
+      return (
+        <Card className="py-12 text-center">
+          <CardContent className="flex flex-col items-center gap-4">
+            <PackageSearch className="h-12 w-12 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-lg">No templates found</CardTitle>
+              <CardDescription>
+                Try adjusting your search or check back later for new designs.
+              </CardDescription>
             </div>
-          </div>
-        </div>
-        <Footer />
+            <Button variant="outline" onClick={() => setSearchTerm('')}>
+              Clear search
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {filteredTemplates.map((template) => (
+          <Card key={template._id} className="group overflow-hidden">
+            <CardHeader className="p-0">
+              <div className="relative">
+                <img
+                  src={template.image.url}
+                  alt={template.name || 'Template'}
+                  className="h-52 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <Badge className="absolute top-3 left-3 bg-black/80 text-white">
+                  Template
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div>
+                <CardTitle className="text-lg font-semibold">
+                  {template.name || 'Untitled Template'}
+                </CardTitle>
+                <CardDescription>
+                  Uploaded {new Date(template.createdAt).toLocaleDateString()}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={() => handleUseTemplate(template)}>
+                  <Shirt className="mr-2 h-4 w-4" />
+                  Use Template
+                </Button>
+                <Button variant="outline" onClick={() => handlePreview(template)}>
+                  Preview
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      
-      <div className="container mx-auto px-4 py-6 sm:py-8 flex-1">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Design Templates</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Choose from our collection of professionally designed templates or create your own
-            </p>
-          </div>
 
-          {/* Search and Filter */}
-          <div className="mb-6 sm:mb-8 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="container mx-auto px-4 py-6 sm:py-10 flex-1">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="flex flex-col space-y-2">
+              <CardTitle className="text-2xl sm:text-3xl font-semibold flex items-center gap-2">
+                <ImageIcon className="h-6 w-6 text-primary" />
+                Design Templates
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                Browse ready-made designs created by our team. Pick one, choose a
+                product, and start customizing instantly.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search templates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 text-sm sm:text-base"
+                  placeholder="Search templates..."
+                  className="pl-9"
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
-                {categories.map((category) => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedCategory(category)}
-                    className="capitalize text-xs sm:text-sm"
-                  >
-                    <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    {category}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Results Count */}
-          <div className="mb-4 sm:mb-6">
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Showing {filteredTemplates.length} of {templates.length} templates
-            </p>
-          </div>
+          {renderContent()}
 
-          {/* Templates Grid */}
-          {filteredTemplates.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <Palette className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-base sm:text-lg font-semibold mb-2">No templates found</h3>
-              <p className="text-sm sm:text-base text-muted-foreground mb-4">
-                Try adjusting your search or filter criteria
+          <Card className="border-dashed border-2 border-primary/20 bg-secondary/10">
+            <CardContent className="py-8 sm:py-12 text-center space-y-4">
+              <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-primary" />
+              <h2 className="text-xl sm:text-2xl font-semibold">
+                Want something different?
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto">
+                Jump into the design lab to create your own style from scratch.
+                Upload images, add text, and customize every detail.
               </p>
-              <Button onClick={() => {
-                setSearchTerm('');
-                setSelectedCategory('all');
-              }} size="sm">
-                Clear Filters
+              <Button size="lg" onClick={() => navigate('/customize')}>
+                Start Custom Design
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Footer />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Select a product</DialogTitle>
+            <DialogDescription>
+              Choose where you want to apply this template. You can still change
+              colors and sizes in the next step.
+            </DialogDescription>
+          </DialogHeader>
+
+          {productsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <Skeleton className="h-40 w-full" />
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          ) : productsError ? (
+            <Card className="bg-destructive/5 border-destructive/20">
+              <CardContent className="py-6 text-destructive text-center">
+                {productsError}
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {filteredTemplates.map((template) => (
-                <Card key={template.id} className="group hover:shadow-lg transition-shadow">
-                  <CardHeader className="p-0">
-                    <div className="relative overflow-hidden rounded-t-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {products.map((product) => (
+                <Card key={product._id} className="flex flex-col overflow-hidden">
+                  <div className="h-44 bg-muted flex items-center justify-center">
+                    {product.variants?.[0]?.images?.[0]?.url ? (
                       <img
-                        src={template.image}
-                        alt={template.name}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        src={product.variants[0].images[0].url}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
                       />
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary" className="bg-white/90 text-black">
-                          ₹{template.price}
-                        </Badge>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <Shirt className="h-8 w-8" />
+                        <span>No preview</span>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-3 sm:p-4">
-                    <div className="mb-2">
-                      <h3 className="font-semibold text-sm sm:text-base mb-1">{template.name}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                        {template.description}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-1">
-                        {renderStars(template.rating)}
-                      </div>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
-                        ({template.rating})
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1 mb-3 sm:mb-4">
-                      {template.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {template.tags.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{template.tags.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button className="flex-1 text-xs sm:text-sm" size="sm">
-                        <Shirt className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                        Use Template
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                        Preview
+                    )}
+                  </div>
+                  <CardContent className="p-4 space-y-2 flex-1 flex flex-col">
+                    <CardTitle className="text-lg">{product.name}</CardTitle>
+                    <CardDescription className="line-clamp-2">
+                      {product.description || 'Customizable apparel'}
+                    </CardDescription>
+                    <div className="mt-auto pt-4">
+                      <Button className="w-full" onClick={() => handleSelectProduct(product)}>
+                        Use on this product
                       </Button>
                     </div>
                   </CardContent>
@@ -285,27 +317,9 @@ export default function Templates() {
               ))}
             </div>
           )}
-
-          {/* Custom Design CTA */}
-          <div className="mt-8 sm:mt-12">
-            <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-              <CardContent className="p-6 sm:p-8 text-center">
-                <Palette className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-primary mb-4" />
-                <h2 className="text-xl sm:text-2xl font-bold mb-2">Don't see what you're looking for?</h2>
-                <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
-                  Create your own custom design with our easy-to-use design tool
-                </p>
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-sm sm:text-base">
-                  <Palette className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  Start Custom Design
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-      <Footer />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

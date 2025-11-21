@@ -5,28 +5,38 @@ import { toast } from 'sonner';
 interface CartItem {
   _id: string;
   productId: string;
+  productModel?: 'Product' | 'CasualProduct' | 'DTFProduct';
+  productType?: 'custom' | 'casual' | 'dtf';
   productName: string;
   productSlug: string;
-  selectedColor: string;
-  selectedSize: string;
-  frontDesign: {
-    designData: any;
-    designLayers: any[];
-    previewImage: string;
+  productImage?: string;
+  selectedColor?: string;
+  selectedSize?: string;
+  frontDesign?: {
+    designData?: any;
+    designLayers?: any[];
+    previewImage?: string;
     metrics?: any;
   };
-  backDesign: {
-    designData: any;
-    designLayers: any[];
-    previewImage: string;
+  backDesign?: {
+    designData?: any;
+    designLayers?: any[];
+    previewImage?: string;
     metrics?: any;
   };
   basePrice: number;
-  frontCustomizationCost: number;
-  backCustomizationCost: number;
+  frontCustomizationCost?: number;
+  backCustomizationCost?: number;
   totalPrice: number;
   quantity: number;
   addedAt: string;
+  instruction?: string;
+  dtfPrintFile?: {
+    url?: string;
+    preview?: string;
+    fileName?: string;
+    dataUrl?: string;
+  };
 }
 
 interface CartContextType {

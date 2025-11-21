@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Upload,
   Type,
@@ -26,8 +26,13 @@ import {
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchProducts, fetchProductBySlug, saveMyDesign, getMyDesignById } from "@/lib/api";
+import { fetchProducts, fetchProductBySlug, saveMyDesign, getMyDesignById, fetchTemplates } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandList } from "@/components/ui/command";
+import { Loader2, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 // Types
 type Step = "category" | "product" | "design";
@@ -57,6 +62,15 @@ interface Product {
     perTextLayer: number;
     perImageLayer: number;
     sizeMultiplier: number;
+  };
+}
+
+interface TemplateAsset {
+  _id: string;
+  name?: string;
+  image: {
+    url: string;
+    public_id: string;
   };
 }
 
@@ -102,7 +116,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 90, // 3 inches at 300 DPI
     height: 90, 
     description: "3\" × 3\"",
-    price: 50 // Fixed price in ₹
+    price: 50 // Fixed price in $
   },
   { 
     id: "small", 
@@ -110,7 +124,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 150, // 5 inches at 300 DPI
     height: 150, 
     description: "5\" × 5\"",
-    price: 100 // Fixed price in ₹
+    price: 100 // Fixed price in $
   },
   { 
     id: "medium", 
@@ -118,7 +132,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 210, // 7 inches at 300 DPI
     height: 280, // Updated height (280px = ~9.33 inches at 300 DPI)
     description: "7\" × 9.33\"",
-    price: 150 // Fixed price in ₹
+    price: 150 // Fixed price in $
   },
   { 
     id: "large", 
@@ -126,12 +140,12 @@ const STANDARD_DESIGN_SIZES = [
     width: 300, // 10 inches at 300 DPI
     height: 300, 
     description: "10\" × 10\"",
-    price: 200 // Fixed price in ₹
+    price: 200 // Fixed price in $
   },
 ];
 
 // Dynamic pricing: cost derived from rendered object area (in pixels)
-const PRICE_PER_PIXEL = 0.02; // ₹ per pixel area
+const PRICE_PER_PIXEL = 0.02; // $ per pixel area
 const DPI = 300; // standard printing resolution
 const DEFAULT_TEXT_DPI = 300; // default for text layers
 
@@ -187,36 +201,50 @@ async function getImageDPI(file: File): Promise<number> {
 const MAX_PRINTABLE_WIDTH = 400; // px for mockup display
 const MAX_PRINTABLE_HEIGHT = 400; // px for mockup display
 
+async function fetchImageAsDataURL(url: string): Promise<string> {
+  const res = await fetch(url, { mode: "cors", credentials: "omit" });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch image: ${res.status}`);
+  }
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to convert blob to data URL"));
+      }
+    };
+    reader.onerror = () => reject(reader.error || new Error("Failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function Customize() {
   const { addItemToCart } = useCart();
+  const navigate = useNavigate();
   const location = useLocation() as any;
   // Step management
   const [step, setStep] = useState<Step>("product");
-  useEffect(() => {
-    const load = async () => {
-      if (step === "product" && products.length === 0) {
-        setLoading(true);
-        try {
-          const allProducts = await fetchProducts();
-          setProducts(allProducts);
-        } catch {
-          toast.error("Failed to load products");
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-  
+
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState("M");
-  
+  const templateSelectionHandledRef = useRef(false);
+  const [templateInfo, setTemplateInfo] = useState<{ id: string; imageUrl: string } | null>(null);
+  const [templateApplied, setTemplateApplied] = useState(false);
+  const [templates, setTemplates] = useState<TemplateAsset[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
+  const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
+  const [orderInstruction, setOrderInstruction] = useState("");
+  const templateImageCache = useRef<Record<string, string>>({});
+
   // Canvas state
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -320,6 +348,95 @@ export default function Customize() {
   const [loading, setLoading] = useState(false);
   const [savingDesign, setSavingDesign] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (step === "product" && products.length === 0) {
+        setLoading(true);
+        try {
+          const allProducts = await fetchProducts();
+          setProducts(allProducts);
+        } catch {
+          toast.error("Failed to load products");
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, products.length]);
+
+  useEffect(() => {
+    const selection = (location as any)?.state?.templateSelection;
+    if (!selection || templateSelectionHandledRef.current) return;
+
+    templateSelectionHandledRef.current = true;
+
+    const initializeFromTemplate = async () => {
+      try {
+        setLoading(true);
+        let currentProducts = products;
+        if (!currentProducts.length) {
+          currentProducts = await fetchProducts();
+          setProducts(currentProducts);
+        }
+        const product = currentProducts.find((item) => item._id === selection.productId);
+        if (product) {
+          setSelectedProduct(product);
+          setSelectedColor(product.variants?.[0]?.color || null);
+          setStep("design");
+          setTemplateInfo({ id: selection.templateId, imageUrl: selection.imageUrl });
+          setTemplateApplied(false);
+          toast.success("Template applied. Customize your design!");
+        } else {
+          setTemplateInfo(null);
+          toast.error("Selected product is unavailable.");
+        }
+      } catch (err) {
+        setTemplateInfo(null);
+        toast.error("Unable to load template. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeFromTemplate();
+
+    const currentState = { ...((location as any)?.state || {}) };
+    if (currentState.templateSelection) {
+      delete currentState.templateSelection;
+      navigate(location.pathname, {
+        replace: true,
+        state: Object.keys(currentState).length ? currentState : null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, products, navigate]);
+
+  useEffect(() => {
+    let active = true;
+    const loadTemplates = async () => {
+      try {
+        setTemplatesLoading(true);
+        const data = await fetchTemplates();
+        if (!active) return;
+        setTemplates(Array.isArray(data) ? data : []);
+        setTemplatesError(null);
+      } catch (error: any) {
+        if (!active) return;
+        setTemplatesError(error?.message || "Failed to load templates");
+      } finally {
+        if (active) setTemplatesLoading(false);
+      }
+    };
+
+    loadTemplates();
+
+    return () => {
+      active = false;
+    };
+  }, []);
   
   // Pricing
   const basePrice = selectedProduct?.price || 0;
@@ -354,9 +471,43 @@ export default function Customize() {
   // Helper: initialize Fabric canvas
   const setupCanvasInstance = useCallback((el: HTMLCanvasElement) => {
     if (didInitCanvasRef.current || fabricCanvas) return;
+    
+    // Calculate responsive canvas size
+    const getCanvasSize = () => {
+      // Get the actual container width
+      const container = el.closest('.container') || el.parentElement?.parentElement;
+      if (!container) {
+        // Fallback: use viewport width
+        const viewportWidth = window.innerWidth;
+        const isMobile = viewportWidth < 640;
+        const maxWidth = isMobile ? Math.min(viewportWidth - 48, 320) : 500;
+        const aspectRatio = 5 / 6;
+        return { width: maxWidth, height: maxWidth / aspectRatio };
+      }
+      
+      const containerWidth = (container as HTMLElement).clientWidth || window.innerWidth;
+      const padding = 48; // Account for container padding and card padding
+      const availableWidth = Math.max(280, containerWidth - padding);
+      
+      // On mobile, use smaller size; on desktop, use full size
+      const isMobile = window.innerWidth < 640; // sm breakpoint
+      const maxWidth = isMobile ? Math.min(availableWidth, 320) : Math.min(availableWidth, 500);
+      const aspectRatio = 5 / 6; // 500:600 ratio
+      const height = maxWidth / aspectRatio;
+      
+      return { width: Math.round(maxWidth), height: Math.round(height) };
+    };
+    
+    // Wait a bit for DOM to be ready, then calculate size
+    const calculateSize = () => {
+      const size = getCanvasSize();
+      return size;
+    };
+    
+    const { width, height } = calculateSize();
     const canvas = new FabricCanvas(el, {
-      width: 500,
-      height: 600,
+      width,
+      height,
       backgroundColor: "transparent",
     });
     setFabricCanvas(canvas);
@@ -407,6 +558,78 @@ export default function Customize() {
     }
   }, [setupCanvasInstance, step]);
 
+  // Resize canvas on window resize to prevent overflow
+  useEffect(() => {
+    if (!fabricCanvas || step !== "design" || !canvasRef.current) return;
+    
+    const handleResize = () => {
+      const canvas = fabricCanvas;
+      const container = canvasRef.current?.parentElement?.parentElement;
+      if (!container || !canvasRef.current) return;
+      
+      const containerWidth = container.clientWidth;
+      const padding = 48;
+      const availableWidth = Math.max(280, containerWidth - padding);
+      
+      const isMobile = window.innerWidth < 640;
+      const maxWidth = isMobile ? Math.min(availableWidth, 320) : Math.min(availableWidth, 500);
+      const aspectRatio = 5 / 6;
+      const newHeight = maxWidth / aspectRatio;
+      
+      // Only resize if size changed significantly (more than 10px difference)
+      const currentWidth = canvas.getWidth();
+      const currentHeight = canvas.getHeight();
+      if (Math.abs(currentWidth - maxWidth) > 10 || Math.abs(currentHeight - newHeight) > 10) {
+        // Store current scale ratio before resize
+        const scaleRatio = maxWidth / currentWidth;
+        
+        // Resize canvas
+        canvas.setDimensions({ width: maxWidth, height: newHeight });
+        
+        // Rescale all objects to maintain relative positions
+        const objects = canvas.getObjects();
+        objects.forEach((obj) => {
+          if ((obj as any).name !== 'tshirt-base-photo' && (obj as any).name !== 'bg-photo') {
+            // Scale custom elements proportionally
+            obj.scaleX = (obj.scaleX || 1) * scaleRatio;
+            obj.scaleY = (obj.scaleY || 1) * scaleRatio;
+            obj.left = (obj.left || 0) * scaleRatio;
+            obj.top = (obj.top || 0) * scaleRatio;
+            obj.setCoords();
+          }
+        });
+        
+        // Reload base image to fit new canvas size
+        const baseImg = objects.find((o) => (o as any).name === 'tshirt-base-photo');
+        if (baseImg && selectedProduct && selectedColor) {
+          const variant = selectedProduct.variants.find((v) => v.color === selectedColor);
+          const imgUrl = variant ? pickVariantImageForSide(variant, designSide) : undefined;
+          if (imgUrl) {
+            canvas.remove(baseImg);
+            addProductPhotoBase(canvas, imgUrl);
+          }
+        }
+        
+        canvas.renderAll();
+      }
+    };
+    
+    // Debounce resize
+    let resizeTimeout: NodeJS.Timeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 200);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
+    // Initial check after a short delay to ensure DOM is ready
+    setTimeout(handleResize, 200);
+    
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, [fabricCanvas, step, selectedProduct, selectedColor, designSide]);
 
   // Focused logging for front/back switching
   useEffect(() => {
@@ -512,9 +735,9 @@ export default function Customize() {
             console.log("[Customize] Base image loaded successfully for", designSide, "Dimensions:", img.width, "x", img.height);
             img.set({ selectable: false, evented: false });
             
-            // Cover entire canvas area for full width/height
-            const canvasW = 500;
-            const canvasH = 600;
+            // Use actual canvas dimensions instead of hardcoded values
+            const canvasW = fabricCanvas.getWidth();
+            const canvasH = fabricCanvas.getHeight();
             const scaleX = canvasW / (img.width || canvasW);
             const scaleY = canvasH / (img.height || canvasH);
             const scale = Math.max(scaleX, scaleY);
@@ -600,6 +823,108 @@ export default function Customize() {
       }
     }
   }, [designSide, fabricCanvas, step, selectedProduct, selectedColor, showBackground]);
+
+  useEffect(() => {
+    if (!fabricCanvas || !templateInfo || templateApplied || step !== "design") return;
+    if (!selectedProduct || !selectedColor) return;
+
+    const currentSide = designSide;
+
+    // Remove existing template layers before adding a new one
+    const objects = fabricCanvas.getObjects();
+    const targetLayerRef =
+      currentSide === "front" ? frontDesignLayersRef.current : backDesignLayersRef.current;
+    const templateLayerIds = new Set(
+      targetLayerRef.filter((layer) => layer.id.startsWith("template-")).map((layer) => layer.id)
+    );
+
+    if (templateLayerIds.size > 0) {
+      objects
+        .filter((obj: any) => obj.layerId && templateLayerIds.has(obj.layerId))
+        .forEach((obj) => fabricCanvas.remove(obj));
+      fabricCanvas.renderAll();
+      if (currentSide === "front") {
+        setFrontDesignLayers((prev) =>
+          prev.filter((layer) => !templateLayerIds.has(layer.id))
+        );
+      } else {
+        setBackDesignLayers((prev) =>
+          prev.filter((layer) => !templateLayerIds.has(layer.id))
+        );
+      }
+    }
+
+    const loadTemplate = async () => {
+      try {
+        const cacheKey = `${templateInfo.imageUrl}`;
+        let source = templateImageCache.current[cacheKey];
+        if (!source) {
+          source = await fetchImageAsDataURL(templateInfo.imageUrl);
+          templateImageCache.current[cacheKey] = source;
+        }
+
+        const img = await FabricImage.fromURL(source);
+
+        const maxWidth = 280;
+        const maxHeight = 280;
+        const originalWidth = img.width || maxWidth;
+        const originalHeight = img.height || maxHeight;
+        const scale = Math.min(maxWidth / originalWidth, maxHeight / originalHeight, 1);
+
+        img.set({
+          left: 110,
+          top: 180,
+          scaleX: scale,
+          scaleY: scale,
+          selectable: true,
+        });
+        configureObjectControls(img);
+
+        const layerId = `template-${templateInfo.id}-${currentSide}`;
+        (img as any).name = "custom-image";
+        (img as any).layerId = layerId;
+        (img as any).designSide = currentSide;
+        (img as any).designSizeId = selectedDesignSize;
+
+        fabricCanvas.add(img);
+        fabricCanvas.setActiveObject(img);
+        fabricCanvas.renderAll();
+
+        const newLayer: DesignLayer = {
+          id: layerId,
+          type: "image",
+          data: {
+            url: source,
+            x: img.left || 0,
+            y: img.top || 0,
+            scale: img.scaleX || 1,
+            rotation: img.angle || 0,
+          },
+          cost: selectedProduct?.customizationPricing?.perImageLayer || 20,
+          designSizeId: selectedDesignSize,
+        };
+
+        if (currentSide === "front") {
+          setFrontDesignLayers((prev) => {
+            const filtered = prev.filter((layer) => !layer.id.startsWith("template-"));
+            return [...filtered, newLayer];
+          });
+        } else {
+          setBackDesignLayers((prev) => {
+            const filtered = prev.filter((layer) => !layer.id.startsWith("template-"));
+            return [...filtered, newLayer];
+          });
+        }
+        setTemplateApplied(true);
+      } catch (error) {
+        console.error("Failed to load template image", error);
+        toast.error("Failed to load template image");
+        setTemplateApplied(true);
+      }
+    };
+
+    loadTemplate();
+  }, [fabricCanvas, templateInfo, templateApplied, selectedProduct, selectedColor, selectedDesignSize, designSide, step]);
 
   // Toggle background photo on/off
   useEffect(() => {
@@ -900,7 +1225,7 @@ export default function Customize() {
         perLayer: backPerLayerMetrics 
       });
       
-      console.log(`[Pricing] Front: ₹${frontMaxPrice.toFixed(2)}, Back: ₹${backMaxPrice.toFixed(2)} (based on size presets)`);
+      console.log(`[Pricing] Front: $${frontMaxPrice.toFixed(2)}, Back: $${backMaxPrice.toFixed(2)} (based on size presets)`);
     };
 
     // Debounced update to prevent too many rapid calculations
@@ -962,6 +1287,16 @@ export default function Customize() {
     }
   };
 
+  const handleTemplateSelect = useCallback(
+    (template: TemplateAsset) => {
+      setTemplateInfo({ id: template._id, imageUrl: template.image.url });
+      setTemplateApplied(false);
+      setTemplatePopoverOpen(false);
+      toast.success("Template applied to canvas");
+    },
+    []
+  );
+
   const handleProductSelect = async (product: Product) => {
     setSelectedProduct(product);
     // Automatically select the first color variant
@@ -1019,9 +1354,9 @@ export default function Customize() {
     const url = "/placeholder.svg"; // uses existing public asset
     FabricImage.fromURL(url).then((img) => {
       img.set({ left: 0, top: 0, selectable: false, evented: false, opacity: 0.25 });
-      // cover entire canvas area
-      const canvasW = 500;
-      const canvasH = 600;
+      // Use actual canvas dimensions
+      const canvasW = canvas.getWidth();
+      const canvasH = canvas.getHeight();
       const scaleX = canvasW / (img.width || canvasW);
       const scaleY = canvasH / (img.height || canvasH);
       const scale = Math.max(scaleX, scaleY);
@@ -1043,9 +1378,9 @@ export default function Customize() {
         // eslint-disable-next-line no-console
         console.log("[Customize] Base image loaded successfully");
         img.set({ selectable: false, evented: false });
-        // Cover entire canvas area for full width/height
-        const canvasW = 500;
-        const canvasH = 600;
+        // Use actual canvas dimensions instead of hardcoded values
+        const canvasW = canvas.getWidth();
+        const canvasH = canvas.getHeight();
         const scaleX = canvasW / (img.width || canvasW);
         const scaleY = canvasH / (img.height || canvasH);
         const scale = Math.max(scaleX, scaleY);
@@ -1063,6 +1398,10 @@ export default function Customize() {
           canvas.sendObjectToBack(bg);
         }
         canvas.renderAll();
+        // eslint-disable-next-line no-console
+        console.log("[Customize] Base image loaded successfully for", designSide, "Dimensions:", canvasW, "x", canvasH);
+        // eslint-disable-next-line no-console
+        console.log("[Customize] Image positioning - Scale:", scale, "Size:", newW, "x", newH, "Position:", (canvasW - newW) / 2, ",", (canvasH - newH) / 2);
       })
       .catch((err) => {
         // eslint-disable-next-line no-console
@@ -1073,17 +1412,32 @@ export default function Customize() {
 
   // Pick appropriate base image for the selected side
   const pickVariantImageForSide = (variant: Product["variants"][number], side: "front" | "back") => {
-    if (!variant?.images?.length) return undefined;
-    // Heuristics:
-    // 1) Prefer URLs containing "back" when side === back and "front" for front
-    // 2) Otherwise, use index 0 for front, index 1 for back if present (fallback to 0)
-    const lower = (s: string) => s.toLowerCase();
-    const byHint = variant.images.find((img) =>
-      side === "back" ? lower(img.url).includes("back") : lower(img.url).includes("front")
-    );
-    if (byHint) return byHint.url;
-    if (side === "front") return variant.images[0]?.url;
-    return variant.images[1]?.url || variant.images[0]?.url;
+    if (!variant) return undefined;
+
+    const getUrl = (images?: Array<{ url: string }>) =>
+      images && images.length ? images[0]?.url : undefined;
+
+    if (side === "front") {
+      const front = getUrl((variant as any).frontImages);
+      if (front) return front;
+    } else {
+      const back = getUrl((variant as any).backImages);
+      if (back) return back;
+    }
+
+    if (Array.isArray(variant.images) && variant.images.length) {
+      const lower = (s: string) => s.toLowerCase();
+      const hinted = variant.images.find((img) =>
+        side === "back" ? lower(img.url).includes("back") : lower(img.url).includes("front")
+      );
+      if (hinted) return hinted.url;
+
+      // Fallback — assume images array is [front, back, ...]
+      if (side === "front") return variant.images[0]?.url;
+      return variant.images[1]?.url || variant.images[0]?.url;
+    }
+
+    return undefined;
   };
 
   const handleAddText = () => {
@@ -1410,21 +1764,10 @@ export default function Customize() {
   };
 
 
-  const handleAddToCart = async () => {
-    if (!fabricCanvas || !selectedProduct || !selectedColor) {
-      toast.error("Please complete all steps before adding to cart");
-      return;
-    }
-    
-    // Check if user is authenticated
+  const prepareCartItem = async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      toast.error("Please login to add items to cart");
-      return;
-    }
-    
-    setAddingToCart(true);
-    
+    if (!token) throw new Error("Please login to add items to cart");
+
     try {
       console.log("[Customize] Starting add to cart process...");
       console.log("[Customize] User token exists:", !!token);
@@ -1571,7 +1914,7 @@ export default function Customize() {
       const backPreviewImage = await generatePreviewForSide('back');
 
       // Prepare cart item data
-      const cartItem = {
+      const cartItem: any = {
         productId: selectedProduct._id,
         productName: selectedProduct.name,
         productSlug: selectedProduct.slug,
@@ -1601,8 +1944,7 @@ export default function Customize() {
       console.log("[Customize] Cart item size:", cartItemSize, "bytes");
       
       if (cartItemSize > 15 * 1024 * 1024) { // 15MB safety margin
-        toast.error("Design data is too large. Please reduce image size or remove some elements.");
-        return;
+        throw new Error("Design data is too large. Please reduce image size or remove some elements.");
       }
       
       console.log("[Customize] Cart item prepared:", cartItem);
@@ -1610,10 +1952,41 @@ export default function Customize() {
       console.log("[Customize] Front design preview image start:", cartItem.frontDesign.previewImage?.substring(0, 50));
       
       // Add to cart via context
-      await addItemToCart(cartItem);
+      return cartItem;
     } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!fabricCanvas || !selectedProduct || !selectedColor) {
+      toast.error("Please complete all steps before adding to cart");
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error("Please login to add items to cart");
+      return;
+    }
+
+    setAddingToCart(true);
+
+    try {
+      const cartItem = await prepareCartItem();
+      if (!cartItem) {
+        throw new Error("Unable to prepare cart item.");
+      }
+      if (orderInstruction.trim()) {
+        cartItem.instruction = orderInstruction.trim();
+      }
+
+      await addItemToCart(cartItem);
+      setOrderInstruction("");
+      setInstructionDialogOpen(false);
+    } catch (error: any) {
       console.error("[Customize] Add to cart error:", error);
-      toast.error("Failed to add to cart");
+      toast.error(error?.message || "Failed to add to cart");
     } finally {
       setAddingToCart(false);
     }
@@ -1904,10 +2277,10 @@ export default function Customize() {
   // ---- End top ----
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-muted/20">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8 flex-1">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 flex-1 overflow-x-hidden">
 
         <AnimatePresence mode="wait">
           {/* Step 1: Category Selection */}
@@ -1920,18 +2293,18 @@ export default function Customize() {
               className="max-w-4xl mx-auto"
             >
               <Card>
-                <CardContent className="p-8">
-                  <h2 className="text-2xl font-semibold mb-6 text-center">Select a Category</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <CardContent className="p-4 sm:p-6 md:p-8">
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-center">Select a Category</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     {CATEGORIES.map((category) => (
                       <Button
                         key={category.id}
                         variant="outline"
-                        className="h-32 flex flex-col gap-2"
+                        className="h-24 sm:h-32 flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm"
                         onClick={() => handleCategorySelect(category)}
                         disabled={loading}
                       >
-                        <span className="text-4xl">{category.icon}</span>
+                        <span className="text-2xl sm:text-4xl">{category.icon}</span>
                         <span className="font-medium">{category.name}</span>
                       </Button>
                     ))}
@@ -1951,14 +2324,14 @@ export default function Customize() {
               className="max-w-6xl mx-auto"
             >
               <Card>
-                <CardContent className="p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-semibold">
+                <CardContent className="p-4 sm:p-6 md:p-8">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+                    <h2 className="text-xl sm:text-2xl font-semibold">
                       {selectedCategory?.name ? `${selectedCategory.name} - ` : ""}Select a Product
                     </h2>
                     {selectedCategory && (
-                      <Button variant="outline" onClick={handleBack}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
+                      <Button variant="outline" onClick={handleBack} className="w-full sm:w-auto text-xs sm:text-sm h-9 sm:h-10">
+                        <ArrowLeft className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Back
                       </Button>
                     )}
@@ -1975,7 +2348,13 @@ export default function Customize() {
                         >
                           <CardContent className="p-4">
                             <div className="aspect-square bg-muted rounded-lg mb-4 flex items-center justify-center">
-                              {product.variants[0]?.images[0] ? (
+                              {product.variants[0]?.frontImages?.[0] ? (
+                                <img
+                                  src={product.variants[0].frontImages[0].url}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              ) : product.variants[0]?.images?.[0] ? (
                                 <img
                                   src={product.variants[0].images[0].url}
                                   alt={product.name}
@@ -1990,7 +2369,7 @@ export default function Customize() {
                               {product.description}
                             </p>
                             <p className="text-lg font-bold text-primary">
-                              ₹{product.price.toFixed(2)}
+                              ${product.price.toFixed(2)}
                             </p>
                           </CardContent>
                         </Card>
@@ -2012,42 +2391,42 @@ export default function Customize() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0 }}
             >
-        <div className="grid gap-8 lg:grid-cols-[400px_1fr_300px]">
+        <div className="flex flex-col lg:grid lg:grid-cols-[minmax(280px,400px)_1fr_minmax(280px,300px)] gap-4 sm:gap-6 lg:gap-8">
           {/* Left Sidebar - Product Options */}
-          <Card className="h-fit">
-            <CardContent className="p-6 space-y-6">
+          <Card className="h-fit order-1 lg:order-1">
+            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               <div>
-                      <Label className="mb-3 block text-base font-semibold">Design Side</Label>
-                      <div className="grid grid-cols-2 gap-2 mb-4">
+                      <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Design Side</Label>
+                      <div className="grid grid-cols-2 gap-2 mb-3 sm:mb-4">
                         <Button
                           variant={designSide === "front" ? "default" : "outline"}
                           onClick={() => setDesignSide("front")}
-                          className="w-full"
+                          className="w-full h-9 sm:h-10 text-xs sm:text-sm"
                         >
                           Front
                         </Button>
                         <Button
                           variant={designSide === "back" ? "default" : "outline"}
                           onClick={() => setDesignSide("back")}
-                          className="w-full"
+                          className="w-full h-9 sm:h-10 text-xs sm:text-sm"
                         >
                           Back
                         </Button>
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-[10px] sm:text-xs text-muted-foreground">
                         Front: {frontDesignLayers.length} elements | Back: {backDesignLayers.length} elements
                 </div>
               </div>
 
-                    <div className="border-t pt-4">
-                <Label className="mb-3 block text-base font-semibold">Size</Label>
-                <div className="grid grid-cols-3 gap-2">
+                    <div className="border-t pt-3 sm:pt-4">
+                <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Size</Label>
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   {SIZES.map((size) => (
                     <Button
                       key={size}
                       variant={selectedSize === size ? "default" : "outline"}
                       onClick={() => setSelectedSize(size)}
-                      className="w-full"
+                      className="w-full h-8 sm:h-9 text-xs sm:text-sm"
                     >
                       {size}
                     </Button>
@@ -2055,8 +2434,8 @@ export default function Customize() {
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <Label className="mb-3 block text-base font-semibold">Product Color</Label>
+              <div className="border-t pt-3 sm:pt-4">
+                <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Product Color</Label>
                 {selectedProduct && selectedProduct.variants && selectedProduct.variants.length > 0 && (
                   <div className="space-y-3">
                     {/* Color Dropdown Trigger */}
@@ -2064,23 +2443,23 @@ export default function Customize() {
                       <Button
                         variant="outline"
                         onClick={() => setShowColorDropdown(!showColorDropdown)}
-                        className="w-full h-12 flex items-center justify-between p-3 rounded-lg border bg-primary/10 border-primary/20 hover:bg-primary/20"
+                        className="w-full h-10 sm:h-12 flex items-center justify-between p-2 sm:p-3 rounded-lg border bg-primary/10 border-primary/20 hover:bg-primary/20 text-xs sm:text-sm"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <div
-                            className="w-8 h-8 rounded-full border-2 border-border"
+                            className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-border shrink-0"
                             style={{ backgroundColor: selectedProduct.variants.find(v => v.color === selectedColor)?.colorCode || '#ffffff' }}
                           />
-                          <span className="font-medium">{selectedColor}</span>
+                          <span className="font-medium truncate">{selectedColor}</span>
                         </div>
-                        <ChevronDown className={`h-4 w-4 transition-transform ${showColorDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform shrink-0 ${showColorDropdown ? 'rotate-180' : ''}`} />
                       </Button>
 
                       {/* Color Dropdown Content */}
                       {showColorDropdown && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                          <div className="p-4">
-                            <div className="grid grid-cols-10 gap-2">
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-background border-2 border-border rounded-lg shadow-xl z-50 max-h-64 sm:max-h-80 overflow-y-auto">
+                          <div className="p-3 sm:p-4">
+                            <div className="grid grid-cols-8 sm:grid-cols-10 gap-2">
                               {selectedProduct.variants.map((variant) => (
                                 <button
                                   key={variant.color}
@@ -2088,7 +2467,7 @@ export default function Customize() {
                                     setSelectedColor(variant.color);
                                     setShowColorDropdown(false);
                                   }}
-                                  className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
+                                  className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 transition-all hover:scale-110 ${
                                     selectedColor === variant.color 
                                       ? 'border-primary ring-2 ring-primary/20' 
                                       : 'border-border hover:border-primary/50'
@@ -2106,30 +2485,30 @@ export default function Customize() {
                 )}
               </div>
 
-              <div className="border-t pt-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
+              <div className="border-t pt-3 sm:pt-4">
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Base Price:</span>
-                    <span className="font-medium">₹{basePrice.toFixed(2)}</span>
+                    <span className="font-medium">${basePrice.toFixed(2)}</span>
                   </div>
                   
                   {frontCustomizationCost > 0 && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-muted-foreground">Front Design:</span>
-                      <span className="font-medium">₹{frontCustomizationCost.toFixed(2)}</span>
+                      <span className="font-medium">${frontCustomizationCost.toFixed(2)}</span>
                     </div>
                   )}
                   
                   {backCustomizationCost > 0 && (
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-muted-foreground">Back Design:</span>
-                      <span className="font-medium">₹{backCustomizationCost.toFixed(2)}</span>
+                      <span className="font-medium">${backCustomizationCost.toFixed(2)}</span>
                     </div>
                   )}
                   
-                  <div className="flex justify-between border-t pt-2 text-lg font-bold">
+                  <div className="flex justify-between border-t pt-2 text-base sm:text-lg font-bold">
                     <span>Total:</span>
-                    <span className="text-primary">₹{totalPrice.toFixed(2)}</span>
+                    <span className="text-primary">${totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -2137,71 +2516,141 @@ export default function Customize() {
           </Card>
 
           {/* Center - Canvas */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="rounded-lg border p-4 shadow-lg bg-muted/30">
-                    <canvas ref={canvasElRef} className="max-w-full bg-transparent" />
+          <div className="flex flex-col items-center gap-3 sm:gap-4 order-3 lg:order-2 w-full overflow-hidden">
+            <div className="rounded-lg border-2 p-2 sm:p-4 shadow-lg bg-muted/30 w-full max-w-full overflow-hidden flex items-center justify-center" style={{ maxWidth: '100%', width: '100%' }}>
+                    <div className="w-full max-w-full flex items-center justify-center" style={{ maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
+                      <canvas 
+                        ref={canvasElRef} 
+                        className="bg-transparent" 
+                        style={{ 
+                          maxWidth: '100%', 
+                          width: '100%',
+                          height: 'auto',
+                          display: 'block',
+                          objectFit: 'contain'
+                        }} 
+                      />
+                    </div>
             </div>
             {activeLayerMetric && (
               <div
-                style={{
-                  textAlign: 'center',
-                  marginTop: '0.5rem',
-                  fontWeight: 500,
-                  fontSize: '1.1rem',
-                  letterSpacing: '0.5px',
-                  color: '#262626',
-                  background: 'rgba(255,255,255,0.82)',
-                  borderRadius: '6px',
-                  display: 'inline-block',
-                  padding: '2px 12px',
-                  boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)',
-                }}
+                className="text-center mt-2 font-medium text-xs sm:text-sm md:text-base text-foreground bg-background/90 rounded-md inline-block px-2 sm:px-3 py-1 shadow-sm"
               >
                 Size: {activeLayerMetric.widthInches.toFixed(2)}″ × {activeLayerMetric.heightInches.toFixed(2)}″
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" size="sm" onClick={handleRotate}>
-                <RotateCw className="mr-2 h-4 w-4" />
-                Rotate
+            <div className="flex flex-wrap gap-2 justify-center w-full px-2">
+              <Button variant="outline" size="sm" onClick={handleRotate} className="text-xs sm:text-sm">
+                <RotateCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Rotate</span>
+                <span className="sm:hidden">↻</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDeleteSelected}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+              <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="text-xs sm:text-sm">
+                <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Delete</span>
+                <span className="sm:hidden">🗑</span>
               </Button>
               {IS_DEVELOPMENT && (
-                <Button variant="outline" size="sm" onClick={refreshAllObjectSizes} title="Refresh all elements to use updated size dimensions">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh Sizes
+                <Button variant="outline" size="sm" onClick={refreshAllObjectSizes} title="Refresh all elements to use updated size dimensions" className="text-xs sm:text-sm">
+                  <RefreshCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Refresh Sizes</span>
+                  <span className="sm:hidden">↻</span>
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={handleReset}>
-                Reset Design
+              <Button variant="outline" size="sm" onClick={handleReset} className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Reset</span>
+                <span className="sm:hidden">↺</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="mr-2 h-4 w-4" />
-                Download
+              <Button variant="outline" size="sm" onClick={handleDownload} className="text-xs sm:text-sm">
+                <Download className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Download</span>
+                <span className="sm:hidden">↓</span>
               </Button>
-              <Button size="sm" onClick={handleSaveDesign} disabled={savingDesign}>
+              <Button size="sm" onClick={handleSaveDesign} disabled={savingDesign} className="text-xs sm:text-sm">
                 {savingDesign ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-1 sm:mr-2"></div>
+                    <span className="hidden sm:inline">Saving...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
-                  "Save"
+                  <>
+                    <span className="hidden sm:inline">Save</span>
+                    <span className="sm:hidden">💾</span>
+                  </>
                 )}
               </Button>
             </div>
           </div>
 
           {/* Right Sidebar - Customization Tools */}
-          <Card className="h-fit">
-            <CardContent className="p-6">
+          <Card className="h-fit order-2 lg:order-3">
+            <CardContent className="p-4 sm:p-6">
               {/* Design Size Selector */}
-              <div className="mb-6 pb-6 border-b">
-                <Label className="mb-3 block text-base font-semibold">Design Size</Label>
+              <div className="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <Label className="text-sm sm:text-base font-semibold">Design Size</Label>
+                  <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Templates
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="end">
+          <Command>
+            <CommandInput placeholder="Search templates..." />
+            <CommandEmpty>
+              {templatesLoading ? (
+                <span className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading templates...
+                </span>
+              ) : templatesError ? (
+                templatesError
+              ) : (
+                "No templates found."
+              )}
+            </CommandEmpty>
+            <CommandList>
+              <div className="max-h-64 overflow-y-auto px-3 pb-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {templates.map((template) => {
+                    const isActive = templateInfo?.id === template._id;
+                    return (
+                      <button
+                        key={template._id}
+                        type="button"
+                        onClick={() => handleTemplateSelect(template)}
+                        className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-md border transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                          isActive ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/60"
+                        }`}
+                      >
+                        <img
+                          src={template.image?.url}
+                          alt={template.name || "Template preview"}
+                          className="h-full w-full object-cover"
+                        />
+                        {isActive && (
+                          <span className="absolute bottom-1 left-1 right-1 rounded bg-primary/80 px-1 text-[10px] font-medium text-white">
+                            Selected
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </CommandList>
+          </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {STANDARD_DESIGN_SIZES.map((size) => (
                     <Button
@@ -2215,48 +2664,50 @@ export default function Customize() {
                           handleChangeObjectSize(size.id);
                         }
                       }}
-                      className="flex flex-col h-auto py-2"
+                      className="flex flex-col h-auto py-2 text-xs"
                     >
-                      <span className="text-xs font-medium">{size.name}</span>
-                      <span className="text-xs text-muted-foreground">{size.description}</span>
-                      <span className="text-xs font-semibold text-primary mt-1">₹{size.price}</span>
+                      <span className="text-xs font-medium leading-tight">{size.name}</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{size.description}</span>
+                      <span className="text-xs font-semibold text-primary mt-0.5">${size.price}</span>
                     </Button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 leading-relaxed">
                   Select a size before adding elements, or change size of selected element
                 </p>
               </div>
 
               <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="text">
-                    <Type className="mr-2 h-4 w-4" />
-                    Text
+                <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
+                  <TabsTrigger value="text" className="text-xs sm:text-sm">
+                    <Type className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Text</span>
+                    <span className="sm:hidden">T</span>
                   </TabsTrigger>
-                  <TabsTrigger value="image">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Image
+                  <TabsTrigger value="image" className="text-xs sm:text-sm">
+                    <Upload className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Image</span>
+                    <span className="sm:hidden">📷</span>
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="text" className="space-y-4 pt-4">
+                <TabsContent value="text" className="space-y-3 sm:space-y-4 pt-3 sm:pt-4">
                   <div>
-                    <Label className="mb-2 block">Your Text</Label>
+                    <Label className="mb-2 block text-xs sm:text-sm">Your Text</Label>
                     <Input
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Type here..."
-                      className="mb-4"
+                      className="mb-3 sm:mb-4 text-sm sm:text-base h-9 sm:h-10"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAddText();
                       }}
                     />
-                    <Label className="mb-2 block">Font</Label>
+                    <Label className="mb-2 block text-xs sm:text-sm">Font</Label>
                     <select
                       value={selectedFont}
                       onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2"
+                      className="w-full rounded-md border border-input bg-background px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm h-9 sm:h-10"
                     >
                       {FONTS.map((font) => (
                         <option key={font} value={font}>
@@ -2267,44 +2718,45 @@ export default function Customize() {
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">Font Size: {fontSize}px</Label>
+                    <Label className="mb-2 block text-xs sm:text-sm">Font Size: {fontSize}px</Label>
                     <Slider
                       value={[fontSize]}
                       onValueChange={(value) => setFontSize(value[0])}
                       min={20}
                       max={100}
                       step={5}
+                      className="w-full"
                     />
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">Text Color</Label>
+                    <Label className="mb-2 block text-xs sm:text-sm">Text Color</Label>
                     <div className="space-y-2">
                       <button
                         onClick={() => setShowColorPicker(!showColorPicker)}
-                        className="h-10 w-full rounded-md border-2 border-border"
+                        className="h-9 sm:h-10 w-full rounded-md border-2 border-border"
                         style={{ backgroundColor: textColor }}
                       />
                       {showColorPicker && (
-                        <div className="rounded-lg border p-3">
-                          <HexColorPicker color={textColor} onChange={setTextColor} />
+                        <div className="rounded-lg border p-2 sm:p-3">
+                          <HexColorPicker color={textColor} onChange={setTextColor} style={{ width: '100%' }} />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <Button onClick={handleAddText} className="w-full">
-                    <Type className="mr-2 h-4 w-4" />
+                  <Button onClick={handleAddText} className="w-full h-9 sm:h-10 text-xs sm:text-sm">
+                    <Type className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                     {fabricCanvas?.getActiveObject() && (fabricCanvas.getActiveObject() as any).name === "custom-text" ? "Update Text" : "Add Text"}
                   </Button>
                 </TabsContent>
 
-                <TabsContent value="image" className="space-y-4 pt-4">
+                <TabsContent value="image" className="space-y-3 sm:space-y-4 pt-3 sm:pt-4">
                   <div>
-                    <Label className="mb-2 block">Upload Image</Label>
-                    <div className="rounded-lg border-2 border-dashed border-border p-8 text-center">
-                      <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                      <p className="mb-2 text-sm text-muted-foreground">
+                    <Label className="mb-2 block text-xs sm:text-sm">Upload Image</Label>
+                    <div className="rounded-lg border-2 border-dashed border-border p-4 sm:p-8 text-center">
+                      <Upload className="mx-auto mb-2 h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                      <p className="mb-2 text-xs sm:text-sm text-muted-foreground">
                         Click to upload your logo or design
                       </p>
                       <input
@@ -2315,39 +2767,52 @@ export default function Customize() {
                         id="image-upload"
                       />
                       <label htmlFor="image-upload">
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm h-8 sm:h-9">
                           <span>Choose File</span>
                         </Button>
                       </label>
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 sm:p-4 text-xs sm:text-sm">
                     <p className="font-medium text-blue-800">💡 Pro Tip:</p>
                     <p className="mt-1 text-blue-700">PNG images give you the best results with transparent backgrounds and high quality.</p>
                   </div>
                 </TabsContent>
               </Tabs>
 
-              <div className="mt-6 space-y-3 border-t pt-6">
+              <div className="mt-4 sm:mt-6 space-y-3 border-t pt-4 sm:pt-6">
                 <Button 
-                  onClick={handleAddToCart} 
-                  className="w-full gradient-hero shadow-primary"
+                  onClick={() => {
+                    if (!fabricCanvas || !selectedProduct || !selectedColor) {
+                      toast.error("Please complete all steps before adding to cart");
+                      return;
+                    }
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                      toast.error("Please login to add items to cart");
+                      return;
+                    }
+                    setInstructionDialogOpen(true);
+                  }}
+                  className="w-full gradient-hero shadow-primary h-10 sm:h-11 text-xs sm:text-sm font-semibold"
                   disabled={addingToCart}
                 >
                   {addingToCart ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Adding to Cart...
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+                      <span className="hidden sm:inline">Adding to Cart...</span>
+                      <span className="sm:hidden">Adding...</span>
                     </>
                   ) : (
                     <>
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Add to Cart
+                      <ShoppingCart className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Add to Cart</span>
+                      <span className="sm:hidden">Add to Cart</span>
                     </>
                   )}
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">
+                <p className="text-center text-[10px] sm:text-xs text-muted-foreground">
                   Free shipping on orders over $50
                 </p>
               </div>
@@ -2368,6 +2833,53 @@ export default function Customize() {
       </div>
 
       <Footer />
+
+      <Dialog
+        open={instructionDialogOpen}
+        onOpenChange={(open) => {
+          setInstructionDialogOpen(open)
+          if (!open && !addingToCart) {
+            setOrderInstruction("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Special Instructions</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Share any notes for printing, packaging, or delivery. Leave blank if you have no extra requests.
+          </p>
+          <Textarea
+            placeholder="e.g. Print logo 2cm higher, deliver before 5 PM..."
+            value={orderInstruction}
+            onChange={(e) => setOrderInstruction(e.target.value)}
+            rows={5}
+          />
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setInstructionDialogOpen(false)
+                setOrderInstruction("")
+              }}
+              disabled={addingToCart}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddToCart} disabled={addingToCart}>
+              {addingToCart ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add to Cart"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

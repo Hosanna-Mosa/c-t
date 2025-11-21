@@ -9,7 +9,9 @@
     "seed": "node seeders/seed.js",
     "seed:kids": "node scripts/seedKidsVariants.js",
     "seed:tshirts": "node scripts/seedTshirtVariants.js",
-    "seed:hoodies": "node scripts/seedHoodieVariants.js"
+    "seed:hoodies": "node scripts/seedHoodieVariants.js",
+    "check:colors": "node scripts/checkColorMismatches.js",
+    "fix:addresses": "node scripts/fixAddressCountries.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -24,7 +26,10 @@
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.9",
-    "slugify": "^1.6.6"
+    "node-cron": "^3.0.3",
+    "pdfkit": "^0.17.2",
+    "slugify": "^1.6.6",
+    "square": "^41.0.0"
   },
   "devDependencies": {
     "eslint": "^9.32.0",

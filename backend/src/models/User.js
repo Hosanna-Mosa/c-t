@@ -30,11 +30,26 @@ const userSchema = new mongoose.Schema(
     designs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Design' }],
     cart: [
       {
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          refPath: 'productModel',
+          required: true,
+        },
+        productModel: {
+          type: String,
+          enum: ['Product', 'CasualProduct', 'DTFProduct'],
+          default: 'Product',
+        },
+        productType: {
+          type: String,
+          enum: ['custom', 'casual', 'dtf'],
+          default: 'custom',
+        },
         productName: { type: String, required: true },
         productSlug: { type: String, required: true },
-        selectedColor: { type: String, required: true },
-        selectedSize: { type: String, required: true },
+        productImage: { type: String },
+        selectedColor: { type: String },
+        selectedSize: { type: String },
         frontDesign: {
           designData: { type: Object },
           designLayers: [{ type: Object }],
@@ -52,6 +67,13 @@ const userSchema = new mongoose.Schema(
         backCustomizationCost: { type: Number, default: 0 },
         totalPrice: { type: Number, required: true },
         quantity: { type: Number, default: 1 },
+        instruction: { type: String },
+        dtfPrintFile: {
+          url: { type: String },
+          publicId: { type: String },
+          fileName: { type: String },
+          preview: { type: String },
+        },
         addedAt: { type: Date, default: Date.now },
       },
     ],

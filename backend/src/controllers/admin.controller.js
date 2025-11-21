@@ -44,14 +44,6 @@ export const listDesigns = async (req, res) => {
     
     console.log('Admin designs query result:', designs.length, 'designs found (page', page, 'of', Math.ceil(totalDesigns / limit), ')');
     designs.forEach(design => {
-      console.log(`Design: ${design.name || 'Unnamed'}`, {
-        hasFrontDesign: !!design.frontDesign,
-        hasBackDesign: !!design.backDesign,
-        frontPreviewImage: design.frontDesign?.previewImage ? 'Yes' : 'No',
-        backPreviewImage: design.backDesign?.previewImage ? 'Yes' : 'No',
-        frontLayers: design.frontDesign?.designLayers?.length || 0,
-        backLayers: design.backDesign?.designLayers?.length || 0
-      });
     });
     
     res.json({ 

@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import Design from '../models/Design.js';
 import { hashPassword, comparePassword, signToken } from '../services/auth.service.js';
 import { generateVerificationCode, sendVerificationCode, sendPasswordResetSuccess } from '../services/email.service.js';
+import { uploadDataUrl } from '../services/cloudinary.service.js';
 
 export const signup = async (req, res) => {
   const errors = validationResult(req);
@@ -133,7 +134,67 @@ export const deleteDesign = async (req, res) => {
 export const addToCart = async (req, res) => {
   try {
     const cartItem = req.body;
-    const rupee = (n) => `₹${Number(n || 0).toFixed(2)}`;
+    if (!cartItem?.productId || !cartItem?.productName || !cartItem?.productSlug) {
+      return res.status(400).json({ success: false, message: 'Missing product information for cart item' });
+    }
+
+    if (!cartItem.productModel) {
+      cartItem.productModel =
+        cartItem.productType === 'casual'
+          ? 'CasualProduct'
+          : cartItem.productType === 'dtf'
+          ? 'DTFProduct'
+          : 'Product';
+    }
+
+    if (!cartItem.productType) {
+      cartItem.productType =
+        cartItem.productModel === 'CasualProduct'
+          ? 'casual'
+          : cartItem.productModel === 'DTFProduct'
+          ? 'dtf'
+          : 'custom';
+    }
+
+    if (!cartItem.selectedColor) {
+      cartItem.selectedColor = cartItem.productType === 'custom' ? 'Default' : '';
+    }
+    if (!cartItem.selectedSize) {
+      cartItem.selectedSize = cartItem.productType === 'custom' ? 'Default' : '';
+    }
+
+    if (cartItem?.instruction) {
+      cartItem.instruction = String(cartItem.instruction).trim();
+      if (!cartItem.instruction) {
+        delete cartItem.instruction;
+      }
+    }
+
+    if (cartItem.productType === 'dtf') {
+      if (!cartItem.dtfPrintFile) {
+        return res.status(400).json({ success: false, message: 'Print ready file is required for DTF products' });
+      }
+
+      if (cartItem.dtfPrintFile?.dataUrl?.startsWith('data:image')) {
+        try {
+          const uploaded = await uploadDataUrl(cartItem.dtfPrintFile.dataUrl, 'customtees/dtf/print-ready');
+          cartItem.dtfPrintFile = {
+            url: uploaded.url,
+            publicId: uploaded.public_id,
+            preview: uploaded.url,
+            fileName: cartItem.dtfPrintFile.fileName,
+          };
+        } catch (uploadErr) {
+          console.error('[Cart] Failed to upload DTF print file:', uploadErr);
+          return res.status(500).json({ success: false, message: 'Failed to upload print ready file' });
+        }
+      }
+
+      if (!cartItem.dtfPrintFile?.url) {
+        return res.status(400).json({ success: false, message: 'Invalid print ready file' });
+      }
+    }
+    const dollar = (n) => `$${Number(n || 0).toFixed(2)}`;
 
     // Back-office logging for design metrics per requirement
     const logSide = (side, design) => {
@@ -159,7 +220,7 @@ export const addToCart = async (req, res) => {
           console.log(`    - Width: ${layer.widthInches.toFixed(2)}\" (${Math.round(layer.widthPixels)} px)`);
           console.log(`    - Height: ${layer.heightInches.toFixed(2)}\" (${Math.round(layer.heightPixels)} px)`);
           console.log(`    - Area: ${layer.areaInches.toFixed(2)} in² (${Math.round(layer.areaPixels)} px²)`);
-          console.log(`    - Cost: ${rupee(layer.cost)}`);
+          console.log(`    - Cost: ${dollar(layer.cost)}`);
         });
       } else {
         console.log(`  - No design layers`);
@@ -167,10 +228,13 @@ export const addToCart = async (req, res) => {
     };
 
     try {
-      console.log(`\n[Cart] Adding product '${cartItem?.productName}' (${cartItem?.selectedColor}/${cartItem?.selectedSize})`);
-      console.log(`- Base: ${rupee(cartItem?.basePrice)} | Front: ${rupee(cartItem?.frontCustomizationCost)} | Back: ${rupee(cartItem?.backCustomizationCost)} | Total: ${rupee(cartItem?.totalPrice)}`);
-      logSide('front', cartItem?.frontDesign);
-      logSide('back', cartItem?.backDesign);
+      console.log(`\n[Cart] Adding product '${cartItem?.productName}' (${cartItem?.selectedColor || '—'}/${cartItem?.selectedSize || '—'})`);
+      console.log(`- Type: ${cartItem?.productType}`);
+      console.log(`- Base: ${dollar(cartItem?.basePrice)} | Front: ${dollar(cartItem?.frontCustomizationCost)} | Back: ${dollar(cartItem?.backCustomizationCost)} | Total: ${dollar(cartItem?.totalPrice)}`);
+      if (cartItem?.productType === 'custom') {
+        logSide('front', cartItem?.frontDesign);
+        logSide('back', cartItem?.backDesign);
+      }
     } catch (e) {
       console.warn('[Cart] Failed to log metrics:', e?.message);
     }
@@ -241,6 +305,10 @@ export const clearCart = async (req, res) => {
 
 export const addAddress = async (req, res) => {
   const address = req.body;
+  // Ensure country defaults to 'US' if not provided (for backward compatibility)
+  if (!address.country) {
+    address.country = 'US';
+  }
   req.user.addresses.push(address);
   await req.user.save();
   res.status(201).json({ success: true, data: req.user.addresses });
@@ -250,7 +318,14 @@ export const updateAddress = async (req, res) => {
   const { id } = req.params;
   const addr = req.user.addresses.id(id);
   if (!addr) return res.status(404).json({ success: false, message: 'Address not found' });
-  Object.assign(addr, req.body);
+  
+  // Ensure country defaults to 'US' if not provided or empty (for backward compatibility)
+  const updateData = { ...req.body };
+  if (!updateData.country || updateData.country.trim() === '') {
+    updateData.country = 'US';
+  }
+  
+  Object.assign(addr, updateData);
   await req.user.save();
   res.json({ success: true, data: req.user.addresses });
 };

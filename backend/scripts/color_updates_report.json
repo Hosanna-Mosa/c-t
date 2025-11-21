@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2025-11-12T13:42:58.002Z",
+  "totalUpdates": 1,
+  "updates": [
+    {
+      "productId": "691362b530a497406f8adbc5",
+      "productName": "Classic Cotton T-Shirt",
+      "productSlug": "classic-cotton-t-shirt",
+      "variantIndex": 55,
+      "colorName": "Tangerine",
+      "oldColorCode": "#D2B48C",
+      "newColorCode": "#FF7518",
+      "issue": "Color code does not match color name"
+    }
+  ],
+  "statistics": {
+    "productsUpdated": 1,
+    "variantsUpdated": 1
+  }
+}

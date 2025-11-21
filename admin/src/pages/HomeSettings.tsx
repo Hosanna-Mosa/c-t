@@ -6,8 +6,9 @@ type Img = { url: string; public_id: string } | null;
 export function HomeSettings() {
   const [homeBackground, setHomeBackground] = useState<File | null>(null);
   const [homePoster, setHomePoster] = useState<File | null>(null);
+  const [newsContent, setNewsContent] = useState<string>('');
 
-  const [current, setCurrent] = useState<{ homeBackground?: Img; homePoster?: Img } | null>(null);
+  const [current, setCurrent] = useState<{ homeBackground?: Img; homePoster?: Img; newsItems?: string[] } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -17,6 +18,10 @@ export function HomeSettings() {
       try {
         const res = await api.getSettings();
         setCurrent(res.data);
+        const firstItem = Array.isArray(res.data?.newsItems) && res.data.newsItems.length
+          ? (res.data.newsItems[0] || '')
+          : '';
+        setNewsContent(firstItem);
       } catch (e: any) {
         setError(e?.message || 'Failed to load settings');
       }
@@ -50,10 +55,19 @@ export function HomeSettings() {
         const blob = await compressImage(homePoster);
         form.append('homePoster', new File([blob], homePoster.name, { type: blob.type || 'image/jpeg' }));
       }
+
+      const trimmedNews = newsContent.trim();
+      form.append('newsItems', JSON.stringify(trimmedNews ? [trimmedNews] : []));
+
       const res = await api.updateSettings(form);
       setCurrent(res.data);
       setHomeBackground(null);
       setHomePoster(null);
+      const firstItem =
+        Array.isArray(res.data?.newsItems) && res.data.newsItems.length
+          ? (res.data.newsItems[0] || '')
+          : '';
+      setNewsContent(firstItem);
       setToast('Settings updated successfully');
       setTimeout(() => setToast(null), 2500);
     } catch (e: any) {
@@ -82,6 +96,22 @@ export function HomeSettings() {
           {current?.homePoster?.url && (
             <img src={current.homePoster.url} alt="poster" style={{ width: '100%', maxWidth: 420, height: 'auto', borderRadius: 10, marginTop: 10 }} />
           )}
+        </div>
+        <div className="card" style={{ padding: 16 }}>
+          <label htmlFor="news-content" style={{ fontWeight: 600, display: 'block', marginBottom: 8 }}>
+            News Ticker Content
+          </label>
+          <textarea
+            id="news-content"
+            value={newsContent}
+            onChange={(e) => setNewsContent(e.target.value)}
+            placeholder="Add a short announcement that will scroll on the storefront"
+            rows={3}
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+            Tip: Keep it brief (one sentence). Leave blank to hide the news strip.
+          </p>
         </div>
         <button className="primary" type="submit" disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {saving && <span className="spinner" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />}

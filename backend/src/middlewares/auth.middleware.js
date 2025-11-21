@@ -3,8 +3,20 @@ import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
   try {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
+    const authHeader =
+      req.headers.authorization ||
+      req.headers['x-admin-token'] ||
+      req.headers['x-access-token'] ||
+      '';
+
+    let token = null;
+    if (Array.isArray(authHeader)) {
+      token = authHeader[0];
+    } else if (typeof authHeader === 'string' && authHeader.length) {
+      token = authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : authHeader;
+    }
     
     if (!token) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });

@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2025-11-12T13:42:58.001Z",
+  "statistics": {
+    "totalProducts": 5,
+    "totalVariants": 176,
+    "variantsWithIssues": 1,
+    "highSeverityIssues": 1,
+    "missingColorCodes": 0,
+    "exactMatches": 175,
+    "closeMatches": 0,
+    "unknownColors": 0
+  },
+  "mismatches": [
+    {
+      "productId": "691362b530a497406f8adbc5",
+      "productName": "Classic Cotton T-Shirt",
+      "productSlug": "classic-cotton-t-shirt",
+      "variantIndex": 55,
+      "colorName": "Tangerine",
+      "colorCode": "#D2B48C",
+      "issue": "Color code does not match color name",
+      "expectedColorCode": "#FF7518",
+      "severity": "high"
+    }
+  ]
+}

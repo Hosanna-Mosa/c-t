@@ -1133,6 +1133,39 @@ textarea:focus {
   line-height: 1.2;
 }
 
+.dtf-card-media {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.dtf-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.image-preview {
+  margin-top: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.image-preview img {
+  width: 100%;
+  max-height: 240px;
+  display: block;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
 /* Loading Spinner Animation */
 .loading-spinner {
   display: inline-block;

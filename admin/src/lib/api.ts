@@ -1,6 +1,15 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
+const resolveBaseUrl = () => {
+  const envBase = (import.meta as any).env?.VITE_API_BASE
+  if (envBase) return envBase
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:8000/api'
+  }
+  return 'https://customtees-backend-d6t2.onrender.com/api'
+}
+
+const API_BASE = resolveBaseUrl()
 
 function getAuthToken(): string | null {
   return localStorage.getItem('admin_auth_token')
@@ -18,6 +27,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+    headers['X-Admin-Token'] = token
     console.log('Sending request with token:', token.substring(0, 20) + '...')
   } else {
     console.log('No token found for request to:', path)
@@ -71,6 +81,53 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
+  createShipmentLabel: (
+    orderId: string,
+    packageInfo: { weight: string; length: string; width: string; height: string }
+  ) =>
+    request<{
+      success: boolean
+      trackingNumber: string
+      labelUrl: string
+      status?: string
+      shipmentStatus?: string
+      reused?: boolean
+    }>(`/shipment/create-label/${orderId}`, {
+      method: 'POST',
+      body: JSON.stringify(packageInfo),
+    }),
+
+  handoffShipment: (orderId: string) =>
+    request<{ success: boolean; data: any }>(`/shipment/handoff/${orderId}`, {
+      method: 'POST',
+    }),
+
+  refreshTrackingForOrder: (orderId: string) =>
+    request<{ success: boolean; data: any }>(`/tracking/order/${orderId}`),
+
+  triggerTrackingSync: () =>
+    request<{ success: boolean; data: any }>(`/tracking/sync`, {
+      method: 'POST',
+    }),
+
+  // Templates
+  getTemplates: () =>
+    request<{ success: boolean; data: any[] }>(`/templates`),
+  createTemplate: (form: FormData) =>
+    request<{ success: boolean; data: any }>(`/templates`, {
+      method: 'POST',
+      body: form,
+    }),
+  updateTemplate: (id: string, form: FormData) =>
+    request<{ success: boolean; data: any }>(`/templates/${id}`, {
+      method: 'PUT',
+      body: form,
+    }),
+  deleteTemplate: (id: string) =>
+    request<{ success: boolean; message: string }>(`/templates/${id}`, {
+      method: 'DELETE',
+    }),
+
   // Products
   getProducts: () => request<{ success: boolean; data: any[] }>(`/products`),
   createProduct: (data: any) => request<{ success: boolean; data: any }>(`/products`, {
@@ -85,13 +142,63 @@ export const api = {
     method: 'DELETE',
   }),
 
+  // Casual Products
+  getCasualProducts: () => request<{ success: boolean; data: any[] }>(`/casual-products`),
+  getCasualProduct: (id: string) => request<{ success: boolean; data: any }>(`/casual-products/${id}`),
+  createCasualProduct: (form: FormData) =>
+    request<{ success: boolean; data: any }>(`/casual-products`, {
+      method: 'POST',
+      body: form,
+    }),
+  updateCasualProduct: (id: string, form: FormData) =>
+    request<{ success: boolean; data: any }>(`/casual-products/${id}`, {
+      method: 'PUT',
+      body: form,
+    }),
+  deleteCasualProduct: (id: string) =>
+    request<{ success: boolean; message: string }>(`/casual-products/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // DTF Products
+  getDTFProducts: () => request<{ success: boolean; data: any[] }>(`/dtf-products`),
+  createDTFProduct: (form: FormData) =>
+    request<{ success: boolean; data: any }>(`/dtf-products`, {
+      method: 'POST',
+      body: form,
+    }),
+  updateDTFProduct: (id: string, form: FormData) =>
+    request<{ success: boolean; data: any }>(`/dtf-products/${id}`, {
+      method: 'PUT',
+      body: form,
+    }),
+  deleteDTFProduct: (id: string) =>
+    request<{ success: boolean; message: string }>(`/dtf-products/${id}`, {
+      method: 'DELETE',
+    }),
+
   // Designs
   getDesigns: (page: number = 1) => request<{ success: boolean; data: any[]; pagination: any }>(`/admin/designs?page=${page}`),
 
   // Settings
   getSettings: () => request<{ success: boolean; data: any }>(`/settings`),
   updateSettings: (form: FormData) =>
-    request<{ success: boolean; data: any }>(`/settings`, { method: 'PUT', body: form, isForm: true }),
+    request<{ success: boolean; data: any }>(`/settings`, { method: 'PUT', body: form }),
+
+  // Coupons
+  getCoupons: () => request<{ success: boolean; data: any[] }>(`/coupons`),
+  getCouponById: (id: string) => request<{ success: boolean; data: any }>(`/coupons/${id}`),
+  createCoupon: (data: any) => request<{ success: boolean; data: any }>(`/coupons`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateCoupon: (id: string, data: any) => request<{ success: boolean; data: any }>(`/coupons/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteCoupon: (id: string) => request<{ success: boolean; message: string }>(`/coupons/${id}`, {
+    method: 'DELETE',
+  }),
 }
 
 export default api

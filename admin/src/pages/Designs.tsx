@@ -138,7 +138,7 @@ export function Designs() {
                   
                   <div className="detail-row">
                     <span className="label">Price:</span>
-                    <span className="value">₹{design.totalPrice?.toFixed(2) || 'N/A'}</span>
+                    <span className="value">${design.totalPrice?.toFixed(2) || 'N/A'}</span>
                   </div>
                   
                   <div className="detail-row">

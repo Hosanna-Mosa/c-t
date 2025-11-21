@@ -191,7 +191,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                           
                           {result.price && (
                             <p className="text-sm font-medium text-primary mt-1">
-                              From ₹{Number(result.price).toFixed(2)}
+                              From ${Number(result.price).toFixed(2)}
                             </p>
                           )}
                         </div>

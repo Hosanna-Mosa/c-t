@@ -4,12 +4,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Truck, Clock, Star } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getSettings, fetchProducts } from "@/lib/api";
 
+type RawNewsItem =
+  | string
+  | {
+      title?: string;
+      description?: string;
+      linkLabel?: string;
+    };
+
+type HomeSettingsResponse = {
+  homeBackground?: { url: string };
+  homePoster?: { url: string };
+  newsItems?: RawNewsItem[];
+};
+
 export default function Home() {
-  const [settings, setSettings] = useState<any | null>(null);
+  const [settings, setSettings] = useState<HomeSettingsResponse | null>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [shouldMarquee, setShouldMarquee] = useState(false);
+  const tickerContainerRef = useRef<HTMLDivElement | null>(null);
+  const messageRef = useRef<HTMLSpanElement | null>(null);
   
   useEffect(() => {
     getSettings().then(setSettings).catch(() => {});
@@ -17,6 +34,83 @@ export default function Home() {
       .then((data) => setProducts(data.slice(0, 4))) // Get first 4 products
       .catch(() => setProducts([]));
   }, []);
+
+  const tickerItems = useMemo(
+    () =>
+      (settings?.newsItems || [])
+        .map((item) => {
+          if (typeof item === "string") return item.trim();
+          if (item) {
+            const possible =
+              (item as any).title ||
+              (item as any).description ||
+              (item as any).linkLabel;
+            return typeof possible === "string" ? possible.trim() : "";
+          }
+          return "";
+        })
+        .filter((item) => item.length > 0),
+    [settings]
+  );
+
+  const newsMessage = tickerItems[0] || "";
+
+  useEffect(() => {
+    const container = tickerContainerRef.current;
+    const messageEl = messageRef.current;
+
+    if (!container || !messageEl || !newsMessage) {
+      setShouldMarquee(false);
+      return;
+    }
+
+    const update = () => {
+      const containerWidth =
+        tickerContainerRef.current?.getBoundingClientRect().width ?? 0;
+      const messageWidth =
+        messageRef.current?.getBoundingClientRect().width ?? 0;
+      setShouldMarquee(messageWidth > 0 && messageWidth >= containerWidth - 1);
+    };
+
+    update();
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => update())
+        : null;
+
+    if (resizeObserver) {
+      resizeObserver.observe(container);
+      resizeObserver.observe(messageEl);
+    }
+
+    window.addEventListener("resize", update);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      resizeObserver?.disconnect();
+    };
+  }, [newsMessage, shouldMarquee]);
+
+  const tickerStyles = `
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+    .marquee-track {
+      display: inline-flex;
+      width: max-content;
+      animation: marquee 30s linear infinite;
+      will-change: transform;
+    }
+    @keyframes blink {
+      0%, 40%, 100% { opacity: 1; }
+      50%, 80% { opacity: 0.2; }
+    }
+    .blink {
+      animation: blink 1.8s ease-in-out infinite;
+    }
+  `;
   
   const benefits = [
     {
@@ -55,6 +149,36 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+
+      {newsMessage && (
+        <section className="bg-primary/95 text-primary-foreground overflow-hidden relative">
+          <style>{tickerStyles}</style>
+          <div ref={tickerContainerRef} className="px-4 py-3 overflow-hidden w-full">
+            {shouldMarquee ? (
+              <div className="marquee-track whitespace-nowrap">
+                {[0, 1].map((idx) => (
+                  <span
+                    key={`${idx}-${newsMessage}`}
+                    ref={idx === 0 ? messageRef : undefined}
+                    className="inline-block mx-8 text-sm font-semibold uppercase tracking-wide"
+                  >
+                    {newsMessage}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex justify-center items-center w-full">
+                <span
+                  ref={messageRef}
+                  className="text-sm font-semibold uppercase tracking-wide blink text-center"
+                >
+                  {newsMessage}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Hero Section */}
       <section
@@ -163,14 +287,14 @@ export default function Home() {
                   <Card className="group hover-lift cursor-pointer overflow-hidden">
                     <div className="aspect-square overflow-hidden bg-muted">
                       <img
-                        src={product.variants?.[0]?.images?.[0]?.url || product.variants?.[0]?.frontImages?.[0]?.url || "https://via.placeholder.com/400"}
+                        src={product.variants?.[0]?.frontImages?.[0]?.url || product.variants?.[0]?.images?.[0]?.url || "https://via.placeholder.com/400"}
                         alt={product.name}
                         className="h-full w-full object-cover transition-transform group-hover:scale-110"
                       />
                     </div>
                     <CardContent className="p-3 sm:p-4">
                       <h3 className="font-semibold text-sm sm:text-base">{product.name}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground">₹{product.price.toFixed(2)}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">${product.price.toFixed(2)}</p>
                     </CardContent>
                   </Card>
                 </Link>

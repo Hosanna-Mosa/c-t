@@ -2,6 +2,7 @@ const renderUrl = 'https://c-t-back.onrender.com/api';
 const local = "http://localhost:8000/api";
 
 const BASE = false ? local : renderUrl;
+export const API_BASE_URL = BASE;
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -33,8 +34,33 @@ export const fetchProducts = async () => {
   return (res as any).data;
 };
 
+export const fetchCasualProducts = async () => {
+  const res = await request('/casual-products');
+  return (res as any).data;
+};
+
+export const fetchDTFProducts = async () => {
+  const res = await request('/dtf-products');
+  return (res as any).data;
+};
+
+export const fetchCasualProductBySlug = async (slug: string) => {
+  const res = await request(`/casual-products/slug/${slug}`);
+  return (res as any).data;
+};
+
+export const fetchTemplates = async () => {
+  const res = await request('/templates');
+  return (res as any).data;
+};
+
 export const fetchProductBySlug = async (slug: string) => {
   const res = await request(`/products/${slug}`);
+  return (res as any).data;
+};
+
+export const fetchDTFProductBySlug = async (slug: string) => {
+  const res = await request(`/dtf-products/slug/${slug}`);
   return (res as any).data;
 };
 
@@ -120,12 +146,76 @@ export const adminDeleteProduct = async (id: string) => {
 };
 
 // Orders
-export const createOrder = async (body: { productId: string; quantity?: number; paymentMethod: 'cod' | 'razorpay'; shippingAddress?: any }) => {
+export const createOrder = async (body: { productId: string; quantity?: number; paymentMethod: 'cod' | 'square'; shippingAddress?: any }) => {
   return request('/orders', { method: 'POST', body });
 };
 
 export const myOrders = async () => {
   const res = await request('/orders/mine');
+  return (res as any).data;
+};
+
+// Coupons
+export const getActiveCoupons = async () => {
+  const res = await request('/coupons/active');
+  return (res as any).data;
+};
+
+export const applyCoupon = async (code: string, totalAmount: number) => {
+  const res = await request('/coupons/apply', {
+    method: 'POST',
+    body: { code, totalAmount },
+  });
+  return (res as any).data;
+};
+
+// Shipping
+export const getShippingRate = async (destination: any, weight?: number, serviceCode?: string) => {
+  const res = await request('/shipping/rate', {
+    method: 'POST',
+    body: { destination, weight, serviceCode },
+  });
+  return (res as any).data;
+};
+
+export const getTransitTime = async (destination: any, shipDate?: string) => {
+  const res = await request('/shipping/transit', {
+    method: 'POST',
+    body: { destination, shipDate },
+  });
+  return (res as any).data;
+};
+
+export const getAllShippingOptions = async (destination: any, weight?: number) => {
+  const res = await request('/shipping/options', {
+    method: 'POST',
+    body: { destination, weight },
+  });
+  return (res as any).data;
+};
+
+export const verifySquarePayment = async (payload: {
+  sessionId?: string;
+  orderId?: string;
+  transactionId?: string;
+  squareOrderId?: string;
+  status?: string;
+}) => {
+  const res = await request('/payments/square/verify', {
+    method: 'POST',
+    body: payload,
+  });
+  return (res as any).data;
+};
+
+// Tracking
+export const getTrackingDetails = async (trackingNumber: string) => {
+  const res = await request(`/tracking/${trackingNumber}`);
+  return (res as any).data;
+};
+
+export const getOrderTrackingDetails = async (orderId: string) => {
+  const res = await request(`/tracking/order/${orderId}`);
   return (res as any).data;
 };
 
