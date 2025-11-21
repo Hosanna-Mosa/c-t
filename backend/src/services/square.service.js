@@ -157,9 +157,24 @@ export async function createSquareCheckoutSession({
 
 export async function retrieveSquarePayment(paymentId) {
   assertSquareConfigured();
-  const paymentsClient = squareClient.payments;
-  const response = await paymentsClient.get({ paymentId });
-  return response?.payment;
+  try {
+    // Try using HTTP API first (more reliable in production)
+    const response = await squareHttp(`/v2/payments/${paymentId}`);
+    return response?.payment || null;
+  } catch (err) {
+    console.warn('[Square] HTTP API payment retrieval failed, trying SDK:', err?.message);
+    // Fallback to SDK if HTTP fails
+    try {
+      const paymentsClient = squareClient.payments;
+      if (paymentsClient && typeof paymentsClient.get === 'function') {
+        const response = await paymentsClient.get({ paymentId });
+        return response?.payment || null;
+      }
+    } catch (sdkErr) {
+      console.error('[Square] SDK payment retrieval also failed:', sdkErr?.message);
+    }
+    throw err;
+  }
 }
 
 export async function retrievePaymentLink(checkoutId) {
