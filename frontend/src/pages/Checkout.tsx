@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import { AddressSelector } from '@/components/AddressSelector'
-import { createOrderFromCart, getMe, getActiveCoupons, applyCoupon, getShippingRate, getAllShippingOptions } from '@/lib/api'
+import { createOrderFromCart, getMe, getActiveCoupons, applyCoupon } from '@/lib/api'
 import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/hooks/use-auth'
 import { ShoppingBag, CreditCard, Truck, Shield, Tag, X, Clock } from 'lucide-react'
@@ -49,6 +49,16 @@ export default function Checkout() {
     isGuaranteed?: boolean
     serviceName?: string
   } | null>(null)
+
+  const STATIC_SHIPPING_OPTION = {
+    serviceCode: 'flat-rate',
+    serviceName: 'Flat Rate Shipping',
+    cost: 100, // cents -> $1.00
+    transitDays: 3,
+    estimatedDelivery: undefined,
+    deliveryTime: undefined,
+    isGuaranteed: false,
+  }
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -127,7 +137,7 @@ export default function Checkout() {
     // The shipping calculation useEffect will automatically trigger when userAddresses/selectedAddressId updates
   }
 
-  // Fetch all shipping options when address is selected
+  // Provide a static $1 shipping option when address is selected
   useEffect(() => {
     if (!selectedAddressId) {
       setShippingCost(0)
@@ -148,110 +158,23 @@ export default function Checkout() {
       return
     }
 
-    // Calculate total weight (estimate 0.5 lbs per item)
-    const estimatedWeight = Math.max(1, Math.ceil(cartItems.length * 0.5))
-
     setLoadingShipping(true)
     setShippingError(null)
-    setShippingOptions([])
-    setSelectedShippingOption(null)
 
-    getAllShippingOptions(
-      {
-        name: selectedAddress.fullName || 'Customer',
-        addressLine: selectedAddress.line1,
-        line1: selectedAddress.line1,
-        line2: selectedAddress.line2,
-        city: selectedAddress.city,
-        state: selectedAddress.state,
-        stateProvinceCode: selectedAddress.state,
-        postalCode: selectedAddress.postalCode,
-        country: selectedAddress.country || 'US',
-        countryCode: selectedAddress.country || 'US',
-      },
-      estimatedWeight
-    )
-      .then((result) => {
-        console.log('[Checkout] Shipping options response:', result) // Debug log
-        const options = result?.options || []
-        setShippingOptions(options)
-        setShippingError(null)
-        
-        // Auto-select the first option (usually fastest/cheapest)
-        if (options.length > 0) {
-          const firstOption = options[0]
-          setSelectedShippingOption(firstOption.serviceCode)
-          setShippingCost(firstOption.cost || 0)
-          
-          // Set transit info for selected option
-          if (firstOption.transitDays || firstOption.estimatedDelivery) {
-            setTransitInfo({
-              transitDays: firstOption.transitDays,
-              estimatedDelivery: firstOption.estimatedDelivery,
-              deliveryTime: firstOption.deliveryTime,
-              isGuaranteed: firstOption.isGuaranteed,
-              serviceName: firstOption.serviceName,
-            })
-          } else {
-            setTransitInfo(null)
-          }
-        } else {
-          setShippingError('No shipping options available')
-          setShippingCost(0)
-          setTransitInfo(null)
-        }
+    setTimeout(() => {
+      setShippingOptions([STATIC_SHIPPING_OPTION])
+      setSelectedShippingOption(STATIC_SHIPPING_OPTION.serviceCode)
+      setShippingCost(STATIC_SHIPPING_OPTION.cost)
+      setTransitInfo({
+        transitDays: STATIC_SHIPPING_OPTION.transitDays,
+        estimatedDelivery: STATIC_SHIPPING_OPTION.estimatedDelivery,
+        deliveryTime: STATIC_SHIPPING_OPTION.deliveryTime,
+        isGuaranteed: STATIC_SHIPPING_OPTION.isGuaranteed,
+        serviceName: STATIC_SHIPPING_OPTION.serviceName,
       })
-      .catch((error) => {
-        console.error('Shipping options error:', error)
-        
-        // Extract the actual error message from the API response
-        let errorMessage = 'Unable to calculate shipping. Please contact support.'
-        
-        if (error && typeof error === 'object') {
-          if (error.message) {
-            errorMessage = error.message
-          } else if (error.error) {
-            errorMessage = error.error
-          }
-        } else if (typeof error === 'string') {
-          errorMessage = error
-        }
-        
-        // Make error message more user-friendly
-        errorMessage = errorMessage
-          .replace(/^\[UPS\]\s*/i, '')
-          .replace(/^\[Shipping\]\s*/i, '')
-          .replace(/^Failed to calculate shipping rate:\s*/i, '')
-          .trim()
-        
-        // Format common UPS error messages to be more user-friendly
-        if (errorMessage.includes('postal code') && errorMessage.includes('invalid')) {
-          // Extract postal code and state from error message
-          const postalMatch = errorMessage.match(/postal code\s+(\d+)/i)
-          const stateMatch = errorMessage.match(/for\s+([A-Z]{2})/i)
-          if (postalMatch && stateMatch) {
-            errorMessage = `Invalid postal code ${postalMatch[1]} for ${stateMatch[1]}. Please check your address.`
-          } else {
-            errorMessage = `Address validation error: ${errorMessage}`
-          }
-        } else if (errorMessage.includes('City and postal code are required')) {
-          errorMessage = 'Please ensure your address has a valid city and postal code.'
-        } else if (errorMessage.includes('Destination address is required')) {
-          errorMessage = 'Please select a shipping address.'
-        } else if (errorMessage.includes('Authentication') || errorMessage.includes('credentials')) {
-          errorMessage = 'Shipping service temporarily unavailable. Please try again later.'
-        }
-        
-        setShippingError(errorMessage)
-        setShippingCost(0)
-        setShippingOptions([])
-        setSelectedShippingOption(null)
-        setTransitInfo(null)
-      })
-      .finally(() => {
-        setLoadingShipping(false)
-      })
-  }, [selectedAddressId, userAddresses, cartItems.length])
+      setLoadingShipping(false)
+    }, 250)
+  }, [selectedAddressId, userAddresses])
 
   // Handle shipping option selection
   const handleShippingOptionSelect = (serviceCode: string) => {
