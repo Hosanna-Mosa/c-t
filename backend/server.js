@@ -76,6 +76,9 @@ app.use('/api/tracking', trackingRoutes);
 
 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'OK' }));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
+});
 
 // Errors
 app.use(notFound);
