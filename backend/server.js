@@ -28,7 +28,7 @@ dotenv.config();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use(express.static(path.join(__dirname, "build")));
+
 
 // DB
 connectDB();
@@ -76,9 +76,6 @@ app.use('/api/tracking', trackingRoutes);
 
 
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'OK' }));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
-});
 
 // Errors
 app.use(notFound);
