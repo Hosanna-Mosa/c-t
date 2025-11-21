@@ -276,8 +276,41 @@ export const verifySquarePayment = async (req, res) => {
       } else {
         // transactionId was provided, fetch payment directly
         console.log('[Payments] transactionId present, retrieving payment directly', transactionId);
-        payment = await retrieveSquarePayment(transactionId);
-        squareStatus = payment?.status;
+        try {
+          payment = await retrieveSquarePayment(transactionId);
+          squareStatus = payment?.status;
+        } catch (paymentErr) {
+          console.warn('[Payments] Direct payment retrieval failed:', paymentErr?.message);
+          
+          // Fallback: If direct payment lookup fails, try searching by order ID
+          const orderIdToCheck = squareOrderId || session.payment?.squareOrderId;
+          if (orderIdToCheck) {
+            console.log('[Payments] Falling back to search payments by order ID:', orderIdToCheck);
+            try {
+              const payments = await searchPaymentsByOrder(orderIdToCheck);
+              if (payments && payments.length > 0) {
+                // Prefer COMPLETED payments
+                const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                if (completedPayment) {
+                  payment = completedPayment;
+                  squareStatus = payment.status;
+                  console.log('[Payments] Found payment via order search:', payment.id);
+                } else {
+                  payment = payments[0];
+                  squareStatus = payment.status;
+                  console.log('[Payments] Using first payment from order search:', payment.id, 'status:', squareStatus);
+                }
+              }
+            } catch (searchErr) {
+              console.error('[Payments] Order search also failed:', searchErr?.message);
+            }
+          }
+          
+          // If still no payment found, throw the original error
+          if (!payment) {
+            throw paymentErr;
+          }
+        }
       }
 
       if (!payment) {

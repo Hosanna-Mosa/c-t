@@ -49,8 +49,8 @@ export default function Payments() {
             }
           : {
               orderId: legacyOrderId || undefined,
-              transactionId: transactionId || undefined,
-              squareOrderId: squareOrderId || undefined,
+          transactionId: transactionId || undefined,
+          squareOrderId: squareOrderId || undefined,
             }
 
         const result = await verifySquarePayment(payload)

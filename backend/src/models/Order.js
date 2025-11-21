@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const orderItemSchema = new mongoose.Schema(
+const orderItemSchema = new mongoose.Schema(
   {
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -9,12 +9,12 @@ export const orderItemSchema = new mongoose.Schema(
     },
     productModel: {
       type: String,
-      enum: ['Product', 'CasualProduct', 'DTFProduct'],
+      enum: ['Product', 'CasualProduct'],
       default: 'Product',
     },
     productType: {
       type: String,
-      enum: ['custom', 'casual', 'dtf'],
+      enum: ['custom', 'casual'],
       default: 'custom',
     },
     productName: { type: String, required: true },
@@ -53,12 +53,6 @@ export const orderItemSchema = new mongoose.Schema(
       },
     },
     instruction: { type: String, trim: true },
-    dtfPrintFile: {
-      url: { type: String },
-      publicId: { type: String },
-      fileName: { type: String },
-      preview: { type: String },
-    },
   },
   { _id: false }
 );
