@@ -130,6 +130,7 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+export { orderItemSchema };
 export default mongoose.model('Order', orderSchema);
 
 
