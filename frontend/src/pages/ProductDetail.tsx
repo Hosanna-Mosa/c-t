@@ -177,7 +177,7 @@ export default function ProductDetail() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/10">
       <Navbar />
 
-      <section className="container mx-auto flex-1 px-4 py-8 md:py-12">
+      <section className="container mx-auto flex-1 px-4 py-4 md:py-6">
         {loading ? (
           <div className="mx-auto max-w-5xl rounded-2xl border border-dashed border-muted p-12 text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-muted border-t-primary" />
@@ -188,7 +188,7 @@ export default function ProductDetail() {
             {error}
           </div>
         ) : product ? (
-          <div className="grid gap-10 lg:grid-cols-[1.1fr,0.9fr]">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
             <div className="space-y-6">
               <Card className="overflow-hidden border-0 shadow-lg">
                 <div className="relative aspect-[4/5] bg-muted/50">
@@ -231,7 +231,7 @@ export default function ProductDetail() {
               )}
             </div>
 
-            <Card className="space-y-6 border-0 p-6 shadow-lg md:p-8">
+            <Card className="space-y-4 border-0 p-4 shadow-lg md:p-6">
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
                   {product.category && <span>{product.category}</span>}
@@ -371,9 +371,9 @@ export default function ProductDetail() {
 
               <Separator />
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-col gap-3">
                 <Button
-                  className="flex-1 rounded-full text-sm font-semibold shadow-lg hover:shadow-xl"
+                  className="w-full rounded-full text-base font-semibold shadow-lg hover:shadow-xl h-14"
                   size="lg"
                   disabled={adding || cartBusy}
                   onClick={handleAddToCart}
