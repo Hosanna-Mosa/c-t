@@ -3,6 +3,7 @@ import Order from '../models/Order.js';
 import { protect, verifyAdmin } from '../middlewares/auth.middleware.js';
 import { createUpsShipment } from '../services/ups.service.js';
 import { sendTrackingNotificationEmail } from '../services/email.service.js';
+import { getDriveClient } from '../services/googledrive.service.js';
 
 const router = Router();
 
@@ -158,6 +159,65 @@ router.post('/handoff/:orderId', protect, verifyAdmin, async (req, res) => {
       success: false,
       message: error.message || 'Unable to update shipment handoff',
     });
+  }
+});
+
+// Download label from Google Drive
+router.get('/download-label/:orderId', protect, verifyAdmin, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await Order.findById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (!order.labelPublicId) {
+      return res.status(404).json({ success: false, message: 'Label not found for this order' });
+    }
+
+    const drive = getDriveClient();
+    const fileId = order.labelPublicId;
+
+    // Get file metadata
+    const fileMetadata = await drive.files.get({
+      fileId: fileId,
+      fields: 'id, name, mimeType',
+    });
+
+    const fileName = fileMetadata.data.name || `UPS_Label_${orderId.slice(-6)}.pdf`;
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    // Stream the file from Google Drive to the browser
+    const response = await drive.files.get(
+      {
+        fileId: fileId,
+        alt: 'media',
+      },
+      { responseType: 'stream' }
+    );
+
+    // Pipe the stream to the response
+    response.data.pipe(res);
+
+    response.data.on('error', (error) => {
+      console.error('[Shipment] Error streaming file from Google Drive:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'Failed to download label' });
+      }
+    });
+
+  } catch (error) {
+    console.error('[Shipment] Failed to download label:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Unable to download label',
+      });
+    }
   }
 });
 

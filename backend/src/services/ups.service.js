@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
-import { uploadFile } from './cloudinary.service.js';
+import { uploadFileToDrive } from './googledrive.service.js';
 
 // UPS Configuration from environment variables
 // NOTE: Never hardcode credentials in production! Use environment variables only.
@@ -908,20 +908,26 @@ export const createUpsShipment = async (order, packageInfo = {}) => {
   const labelFileName = `${orderId}.pdf`;
   const labelAbsolutePath = path.join(LABELS_DIR, labelFileName);
 
+  // Convert label image to PDF
   const labelBuffer = Buffer.from(labelImage, 'base64');
   await convertImageToPdf(labelBuffer, labelAbsolutePath);
-  const uploadedLabel = await uploadFile(labelAbsolutePath, {
-    folder: 'customtees/labels',
-    resourceType: 'raw',
-    useFilename: true,
-    uniqueFilename: false,
-  });
+
+  // Upload PDF to Google Drive
+  console.log('[UPS][Shipment] Uploading label to Google Drive:', labelAbsolutePath);
+  const uploadedLabel = await uploadFileToDrive(labelAbsolutePath, labelFileName);
+
+  // Clean up temporary PDF file after upload
+  try {
+    await fs.promises.unlink(labelAbsolutePath);
+    console.log('[UPS][Shipment] Temporary PDF file cleaned up:', labelAbsolutePath);
+  } catch (cleanupError) {
+    console.warn('[UPS][Shipment] Failed to clean up temporary file:', cleanupError.message);
+  }
 
   return {
     trackingNumber,
-    labelUrl: uploadedLabel.url,
-    labelPublicId: uploadedLabel.public_id,
-    labelAbsolutePath,
+    labelUrl: uploadedLabel.downloadUrl,
+    labelPublicId: uploadedLabel.fileId, // Store Google Drive file ID
     rawResponse: raw,
   };
 };
