@@ -278,37 +278,159 @@ export const verifySquarePayment = async (req, res) => {
         console.log('[Payments] transactionId present, retrieving payment directly', transactionId);
         try {
           payment = await retrieveSquarePayment(transactionId);
-          squareStatus = payment?.status;
+          if (payment) {
+            squareStatus = payment.status;
+            console.log('[Payments] Successfully retrieved payment directly:', payment.id, 'status:', squareStatus);
+          } else {
+            console.log('[Payments] Payment not found (returned null), trying fallback strategies...');
+          }
         } catch (paymentErr) {
           console.warn('[Payments] Direct payment retrieval failed:', paymentErr?.message);
-          
-          // Fallback: If direct payment lookup fails, try searching by order ID
-          const orderIdToCheck = squareOrderId || session.payment?.squareOrderId;
-          if (orderIdToCheck) {
-            console.log('[Payments] Falling back to search payments by order ID:', orderIdToCheck);
-            try {
-              const payments = await searchPaymentsByOrder(orderIdToCheck);
-              if (payments && payments.length > 0) {
-                // Prefer COMPLETED payments
-                const completedPayment = payments.find(p => p?.status === 'COMPLETED');
-                if (completedPayment) {
-                  payment = completedPayment;
-                  squareStatus = payment.status;
-                  console.log('[Payments] Found payment via order search:', payment.id);
-                } else {
-                  payment = payments[0];
-                  squareStatus = payment.status;
-                  console.log('[Payments] Using first payment from order search:', payment.id, 'status:', squareStatus);
+        }
+        
+        // If payment is null (404) or retrieval failed, try fallback strategies
+        if (!payment) {
+            console.log('[Payments] Payment not found (404), trying fallback strategies...');
+            
+            // Fallback 1: Check payment link status (most reliable for sandbox)
+            const checkoutId = session.payment?.squareCheckoutId;
+            if (checkoutId) {
+              console.log('[Payments] Fallback: Checking payment link status:', checkoutId);
+              try {
+                let paymentLink = null;
+                const maxAttempts = 5;
+                for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                  paymentLink = await retrievePaymentLink(checkoutId);
+                  if (!paymentLink) break;
+                  
+                  const linkStatus = paymentLink.status;
+                  const relatedPayments = paymentLink.relatedResources?.payments || [];
+                  const hasCompletedPayment = relatedPayments.some((p) => p?.status === 'COMPLETED');
+                  
+                  if (linkStatus === 'COMPLETED' || hasCompletedPayment) {
+                    break;
+                  }
+                  
+                  if (attempt < maxAttempts - 1) {
+                    console.log(`[Payments] Payment link status ${linkStatus || 'unknown'}; waiting before retry (${attempt + 1}/${maxAttempts})`);
+                    await sleep(1500);
+                  }
                 }
+                
+                if (paymentLink) {
+                  const linkStatus = paymentLink.status;
+                  console.log('[Payments] Payment link status:', linkStatus);
+                  
+                  if (linkStatus === 'COMPLETED') {
+                    // Try to get payment from related resources
+                    if (paymentLink.relatedResources?.payments) {
+                      const payments = paymentLink.relatedResources.payments || [];
+                      const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                      if (completedPayment) {
+                        payment = completedPayment;
+                        squareStatus = payment.status;
+                        console.log('[Payments] Found completed payment from payment link:', payment.id);
+                      } else if (payments.length > 0) {
+                        payment = payments[0];
+                        squareStatus = payment.status;
+                        console.log('[Payments] Found payment from payment link:', payment.id, 'status:', squareStatus);
+                      }
+                    }
+                    
+                    // If no payment object but link is COMPLETED, search by order ID
+                    if (!payment && (paymentLink.orderId || squareOrderId || session.payment?.squareOrderId)) {
+                      const orderIdToCheck = paymentLink.orderId || squareOrderId || session.payment?.squareOrderId;
+                      console.log('[Payments] Payment link completed, searching payments by order:', orderIdToCheck);
+                      try {
+                        const payments = await searchPaymentsByOrder(orderIdToCheck);
+                        if (payments && payments.length > 0) {
+                          const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                          if (completedPayment) {
+                            payment = completedPayment;
+                            squareStatus = payment.status;
+                            console.log('[Payments] Found payment from order search:', payment.id);
+                          } else {
+                            payment = payments[0];
+                            squareStatus = payment.status;
+                            console.log('[Payments] Using first payment from search:', payment.id, 'status:', squareStatus);
+                          }
+                        }
+                      } catch (searchErr) {
+                        console.warn('[Payments] Could not search payments by order:', searchErr?.message);
+                      }
+                    }
+                    
+                    // If still no payment but link is COMPLETED, treat as paid (sandbox mode)
+                    if (!payment && linkStatus === 'COMPLETED') {
+                      console.log('[Payments] Payment link COMPLETED but no payment object found. Treating as paid (sandbox mode).');
+                      payment = {
+                        id: transactionId || checkoutId + '_sandbox',
+                        status: 'COMPLETED',
+                        orderId: paymentLink.orderId || squareOrderId || session.payment?.squareOrderId,
+                      };
+                      squareStatus = 'COMPLETED';
+                    }
+                  }
+                }
+              } catch (linkErr) {
+                console.warn('[Payments] Payment link check failed:', linkErr?.message);
               }
-            } catch (searchErr) {
-              console.error('[Payments] Order search also failed:', searchErr?.message);
             }
           }
           
-          // If still no payment found, throw the original error
+          // Fallback 2: If still no payment, try searching by order ID
           if (!payment) {
-            throw paymentErr;
+            const orderIdToCheck = squareOrderId || session.payment?.squareOrderId;
+            if (orderIdToCheck) {
+              console.log('[Payments] Fallback: searching payments by order ID:', orderIdToCheck);
+              try {
+                const payments = await searchPaymentsByOrder(orderIdToCheck);
+                if (payments && payments.length > 0) {
+                  // Prefer COMPLETED payments
+                  const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                  if (completedPayment) {
+                    payment = completedPayment;
+                    squareStatus = payment.status;
+                    console.log('[Payments] Found payment via order search:', payment.id);
+                  } else {
+                    payment = payments[0];
+                    squareStatus = payment.status;
+                    console.log('[Payments] Using first payment from order search:', payment.id, 'status:', squareStatus);
+                  }
+                }
+              } catch (searchErr) {
+                console.error('[Payments] Order search also failed:', searchErr?.message);
+              }
+            }
+          }
+          
+          // If still no payment found after all fallbacks, log but don't throw
+          // We'll handle this case below by checking payment link status
+          if (!payment) {
+            console.warn('[Payments] All payment retrieval strategies failed. Will check payment link status as final fallback.');
+          }
+        }
+      }
+
+      // Final fallback: If still no payment, check payment link status one more time
+      if (!payment) {
+        const checkoutId = session.payment?.squareCheckoutId;
+        if (checkoutId) {
+          console.log('[Payments] Final fallback: Checking payment link status one more time:', checkoutId);
+          try {
+            const paymentLink = await retrievePaymentLink(checkoutId);
+            if (paymentLink && paymentLink.status === 'COMPLETED') {
+              console.log('[Payments] Payment link is COMPLETED, treating as paid even without payment object');
+              // Create a minimal payment object to proceed with order creation
+              payment = {
+                id: transactionId || checkoutId + '_sandbox',
+                status: 'COMPLETED',
+                orderId: paymentLink.orderId || squareOrderId || session.payment?.squareOrderId,
+              };
+              squareStatus = 'COMPLETED';
+            }
+          } catch (linkErr) {
+            console.warn('[Payments] Final payment link check failed:', linkErr?.message);
           }
         }
       }
@@ -318,8 +440,27 @@ export const verifySquarePayment = async (req, res) => {
           sessionId,
           transactionId,
           squareOrderId,
+          checkoutId: session.payment?.squareCheckoutId,
         });
-        return res.status(404).json({ success: false, message: 'Square payment not found' });
+        
+        // Update session status to failed
+        session.status = 'failed';
+        session.payment = {
+          ...(session.payment || {}),
+          status: 'failed',
+          squarePaymentId: transactionId,
+          failureReason: 'Payment verification failed: Payment not found in Square system',
+        };
+        await session.save();
+        
+        return res.json({
+          success: true,
+          data: {
+            order: null,
+            paymentStatus: 'failed',
+            squareStatus: 'NOT_FOUND',
+          },
+        });
       }
 
       // Use squareStatus from above or get it from payment
@@ -404,13 +545,66 @@ export const verifySquarePayment = async (req, res) => {
       });
     }
 
-    const payment = await retrieveSquarePayment(transactionId);
-
-    if (!payment) {
-      return res.status(404).json({ success: false, message: 'Square payment not found' });
+    // Try to retrieve payment directly
+    let payment = null;
+    try {
+      payment = await retrieveSquarePayment(transactionId);
+      if (payment) {
+        console.log('[Payments] Successfully retrieved payment for order:', orderId, 'payment:', payment.id);
+      } else {
+        console.log('[Payments] Payment not found (returned null) for order:', orderId, 'trying fallbacks...');
+      }
+    } catch (paymentErr) {
+      console.warn('[Payments] Direct payment retrieval failed for order:', orderId, paymentErr?.message);
     }
 
-    const squareStatus = payment?.status;
+    // If payment is null, try fallback strategies
+    if (!payment) {
+      const orderIdToCheck = squareOrderId || order.payment?.squareOrderId;
+      
+      // Fallback 1: Search payments by order ID
+      if (orderIdToCheck) {
+        console.log('[Payments] Fallback: searching payments by order ID for order:', orderId, 'squareOrderId:', orderIdToCheck);
+        try {
+          const payments = await searchPaymentsByOrder(orderIdToCheck);
+          if (payments && payments.length > 0) {
+            const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+            if (completedPayment) {
+              payment = completedPayment;
+              console.log('[Payments] Found completed payment from order search:', payment.id);
+            } else {
+              payment = payments[0];
+              console.log('[Payments] Using first payment from search:', payment.id, 'status:', payment.status);
+            }
+          }
+        } catch (searchErr) {
+          console.warn('[Payments] Could not search payments by order:', searchErr?.message);
+        }
+      }
+    }
+
+    // If still no payment found, update order status and return
+    if (!payment) {
+      console.warn('[Payments] Unable to find payment for order:', orderId, {
+        transactionId,
+        squareOrderId,
+      });
+      
+      order.payment.status = 'failed';
+      order.payment.failureReason = 'Payment verification failed: Payment not found in Square system';
+      await order.save();
+
+      return res.json({
+        success: true,
+        data: {
+          order,
+          paymentStatus: 'failed',
+          squareStatus: 'NOT_FOUND',
+        },
+      });
+    }
+
+    const squareStatus = payment.status;
 
     if (squareStatus === 'COMPLETED') {
       order.payment.status = 'paid';

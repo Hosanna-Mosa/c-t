@@ -162,8 +162,17 @@ export async function retrieveSquarePayment(paymentId) {
     const response = await squareHttp(`/v2/payments/${paymentId}`);
     return response?.payment || null;
   } catch (err) {
+    // Check if it's a 404 error (payment not found)
+    const is404 = err?.message?.includes('404') || err?.message?.includes('NOT_FOUND');
+    
+    if (is404) {
+      console.log('[Square] Payment not found (404) - this is normal in sandbox mode, will use fallback strategies');
+      // Return null instead of throwing, so caller can use fallback strategies
+      return null;
+    }
+    
     console.warn('[Square] HTTP API payment retrieval failed, trying SDK:', err?.message);
-    // Fallback to SDK if HTTP fails
+    // Fallback to SDK if HTTP fails (and it's not a 404)
     try {
       const paymentsClient = squareClient.payments;
       if (paymentsClient && typeof paymentsClient.get === 'function') {
@@ -173,6 +182,8 @@ export async function retrieveSquarePayment(paymentId) {
     } catch (sdkErr) {
       console.error('[Square] SDK payment retrieval also failed:', sdkErr?.message);
     }
+    
+    // For non-404 errors, throw the original error
     throw err;
   }
 }

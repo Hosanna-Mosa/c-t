@@ -68,8 +68,10 @@ export default function Payments() {
         setStatus('failed')
         if (error?.status === 401) {
           setMessage('Please sign in again to view your payment details.')
+        } else if (error?.message?.includes('NOT_FOUND') || error?.message?.includes('404')) {
+          setMessage('Payment verification is taking longer than expected. Please check your orders page - your payment may have been processed successfully.')
         } else {
-          setMessage(error?.message || 'Unable to verify payment. Please try again.')
+          setMessage(error?.message || 'Unable to verify payment. Please try again or check your orders page.')
         }
       }
     }
