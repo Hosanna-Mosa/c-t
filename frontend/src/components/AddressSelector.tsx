@@ -67,12 +67,39 @@ export function AddressSelector({ selectedAddressId, onAddressSelect, onAddressU
     }
   };
 
+  const normalizePhoneNumber = (phone: string): string => {
+    // Remove all non-digit characters except +
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    
+    // If it starts with +1, keep it; otherwise format as +1 if it's a US number
+    if (cleaned.startsWith('+1')) {
+      return cleaned;
+    } else if (cleaned.startsWith('1') && cleaned.length === 11) {
+      return '+' + cleaned;
+    } else if (cleaned.length === 10) {
+      // US number without country code, format as +1XXXXXXXXXX
+      return '+1' + cleaned;
+    }
+    
+    // If it already has +, return as is
+    if (cleaned.startsWith('+')) {
+      return cleaned;
+    }
+    
+    // Otherwise, try to format it
+    return cleaned;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Normalize phone number to ensure it works with or without brackets
+    const normalizedPhone = normalizePhoneNumber(form.phone);
     
     // Ensure country is set (default to US if empty)
     const formData = {
       ...form,
+      phone: normalizedPhone,
       country: form.country || 'US',
     };
     

@@ -22,7 +22,6 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile.tsx";
 import Track from "./pages/Track";
-import MyDesigns from "./pages/MyDesigns";
 
 const queryClient = new QueryClient();
 
@@ -53,7 +52,6 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/track" element={<Track />} />
             <Route path="/track/:trackingNumber" element={<Track />} />
-            <Route path="/my-designs" element={<MyDesigns />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

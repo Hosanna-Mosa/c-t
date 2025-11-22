@@ -1,16 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, User, Menu, X, Search, Phone } from "lucide-react";
+import { ShoppingCart, User, Menu, X, Phone } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/contexts/CartContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { SearchModal } from "@/components/SearchModal";
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
   const { cartCount } = useCart();
@@ -22,7 +20,6 @@ export const Navbar = () => {
     { name: "Design Lab", path: "/customize" },
     { name: "Products", path: "/products" },
     { name: "DTF", path: "/dtf" },
-    { name: "My Designs", path: "/my-designs" },
   ];
 
   return (
@@ -77,14 +74,6 @@ export const Navbar = () => {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 sm:gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="hidden sm:flex"
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
             {!isAuthenticated ? (
               <div className="hidden sm:flex items-center gap-2">
                 <Link to="/login">
@@ -158,16 +147,6 @@ export const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              {/* Mobile Search */}
-              <Button 
-                variant="outline" 
-                onClick={() => { setMobileMenuOpen(false); setSearchOpen(true); }}
-                className="w-full justify-start"
-              >
-                <Search className="h-4 w-4 mr-2" />
-                Search Products
-              </Button>
-              
               {!isAuthenticated ? (
                 <div className="flex flex-col gap-2">
                   <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-4 py-3 text-sm font-medium hover:bg-muted">
@@ -187,9 +166,6 @@ export const Navbar = () => {
           </div>
         )}
       </div>
-      
-      {/* Search Modal */}
-      <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </nav>
   );
 };
