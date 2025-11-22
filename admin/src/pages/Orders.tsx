@@ -173,8 +173,10 @@ export function Orders() {
   const storefrontBase = (import.meta as any).env?.VITE_STOREFRONT_URL || 'http://localhost:5173'
   const storefrontUrl = typeof storefrontBase === 'string' ? storefrontBase.replace(/\/$/, '') : 'http://localhost:5173'
   const hasStoredLabel = Boolean(selectedOrder?.trackingNumber || selectedOrder?.labelUrl)
-  const labelDownloadPath =
-    selectedOrder && (selectedOrder.labelUrl || `/uploads/labels/${selectedOrder._id}.pdf`)
+  const labelDownloadPath = selectedOrder?.labelUrl || null
+  const labelUrl = labelDownloadPath 
+    ? (labelDownloadPath.startsWith('http') ? labelDownloadPath : `${fileBase}${labelDownloadPath}`)
+    : null
   const showGenerateForm = !hasStoredLabel && selectedOrder?.status !== 'shipped'
 
   async function downloadImage(imageUrl: string, filename = 'layer.png') {
@@ -285,6 +287,42 @@ export function Orders() {
             : order
         )
       )
+      
+      // Automatically download the PDF to browser from backend endpoint
+      if (response.labelUrl) {
+        const fileName = `UPS_Label_${selectedOrder._id.slice(-6)}.pdf`
+        try {
+          // Download from backend endpoint which handles Google Drive OAuth
+          const token = localStorage.getItem('admin_auth_token')
+          const downloadUrl = `${apiBase}/shipment/download-label/${selectedOrder._id}`
+          
+          const downloadResponse = await fetch(downloadUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'X-Admin-Token': token || '',
+            },
+            credentials: 'include',
+          })
+
+          if (!downloadResponse.ok) {
+            throw new Error('Failed to download label')
+          }
+
+          const blob = await downloadResponse.blob()
+          const objectUrl = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = objectUrl
+          link.download = fileName
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(objectUrl)
+        } catch (downloadError) {
+          console.warn('[Admin] Auto-download failed, user can download manually:', downloadError)
+          // Don't throw error - label is still generated successfully
+        }
+      }
+      
       await reloadOrder(selectedOrder._id)
     } catch (e: any) {
       console.error('[Admin] UPS label generation failed', e)
@@ -686,14 +724,42 @@ export function Orders() {
                       </div>
                       <div className="detail-row">
                         <span className="label">Label File:</span>
-                        {labelDownloadPath ? (
+                        {selectedOrder?._id ? (
                           <a
-                            href={`${fileBase}${labelDownloadPath}`}
+                            href={`${apiBase}/shipment/download-label/${selectedOrder._id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            download
+                            download={`UPS_Label_${selectedOrder._id.slice(-6)}.pdf`}
                             className="value"
                             style={{ color: 'var(--accent, #5b21b6)', fontWeight: 600 }}
+                            onClick={async (e) => {
+                              // Ensure download works with authentication
+                              e.preventDefault()
+                              const token = localStorage.getItem('admin_auth_token')
+                              try {
+                                const response = await fetch(`${apiBase}/shipment/download-label/${selectedOrder._id}`, {
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'X-Admin-Token': token || '',
+                                  },
+                                  credentials: 'include',
+                                })
+                                if (!response.ok) throw new Error('Download failed')
+                                const blob = await response.blob()
+                                const url = URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `UPS_Label_${selectedOrder._id.slice(-6)}.pdf`
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                URL.revokeObjectURL(url)
+                              } catch (err) {
+                                console.error('Download error:', err)
+                                setError('Failed to download label')
+                                setTimeout(() => setError(null), 3000)
+                              }
+                            }}
                           >
                             Download UPS Label
                           </a>
