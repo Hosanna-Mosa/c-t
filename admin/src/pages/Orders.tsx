@@ -402,9 +402,12 @@ export function Orders() {
   }
 
   const activeItem = selectedOrder?.items?.[activeItemIndex] || null
+  // Determine product type based on explicit fields or fallback to customDesign existence
+  const isCasualProduct = activeItem?.productType === 'casual' || activeItem?.productModel === 'CasualProduct'
+  const isCustomProduct = activeItem?.productType === 'custom' || activeItem?.productModel === 'Product' || Boolean(activeItem?.customDesign)
   const activeItemHasDesign = Boolean(
-    activeItem?.customDesign?.frontDesign?.previewImage ||
-    activeItem?.customDesign?.backDesign?.previewImage
+    (isCasualProduct && (activeItem?.productImage || activeItem?.product?.images?.[0]?.url)) ||
+    (isCustomProduct && (activeItem?.customDesign?.frontDesign?.previewImage || activeItem?.customDesign?.backDesign?.previewImage))
   )
   const shipmentStatus = selectedOrder?.shipmentStatus || 'pending'
   const shipmentStageIndex = getShipmentStageIndex(shipmentStatus)
@@ -478,10 +481,10 @@ export function Orders() {
                     <div className="design-preview-card" key={activeItemIndex}>
                           <div className="design-preview-header">
                             <h5 style={{ margin: '0', fontSize: '16px', fontWeight: '600' }}>
-                          {activeItem?.product?.name || 'Unknown Product'}
+                          {activeItem?.product?.name || activeItem?.productName || 'Unknown Product'}
                             </h5>
                             <div style={{ fontSize: '14px', color: 'var(--muted)' }}>
-                          {activeItem?.customDesign?.selectedColor} • {activeItem?.customDesign?.selectedSize}
+                          {(isCustomProduct ? activeItem?.customDesign?.selectedColor : activeItem?.selectedColor) || '—'} • {(isCustomProduct ? activeItem?.customDesign?.selectedSize : activeItem?.selectedSize) || '—'}
                             </div>
                         {activeItem?.instruction && (
                               <div style={{ marginTop: 8, padding: '8px 10px', background: '#f5f5f5', borderRadius: 8, fontSize: 13, color: '#444' }}>
@@ -492,6 +495,62 @@ export function Orders() {
                           </div>
                           
                           <div className="design-preview-grid">
+                        {/* Casual Product - Show Product Images */}
+                        {isCasualProduct && (() => {
+                          const productImages = activeItem?.product?.images || []
+                          const productImageUrl = activeItem?.productImage || activeItem?.product?.images?.[0]?.url
+                          
+                          if (productImages.length > 0) {
+                            return productImages.map((img: any, imgIdx: number) => (
+                              <div key={imgIdx} className="design-preview-item">
+                                <div className="design-preview-label">Product Image {imgIdx + 1}</div>
+                                <div className="design-preview-container" onClick={() => openImageZoom(img.url)}>
+                                  <img 
+                                    src={img.url}
+                                    alt={`Product ${imgIdx + 1}`} 
+                                    className="design-preview-image"
+                                  />
+                                  <div className="zoom-overlay">
+                                    <span className="zoom-icon">🔍</span>
+                                  </div>
+                                </div>
+                                <button
+                                  style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel)', cursor: 'pointer', marginTop: 10 }}
+                                  onClick={() => downloadImage(img.url, `product-image-${imgIdx + 1}.png`)}
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            ))
+                          } else if (productImageUrl) {
+                            return (
+                              <div className="design-preview-item">
+                                <div className="design-preview-label">Product Image</div>
+                                <div className="design-preview-container" onClick={() => openImageZoom(productImageUrl)}>
+                                  <img 
+                                    src={productImageUrl}
+                                    alt="Product" 
+                                    className="design-preview-image"
+                                  />
+                                  <div className="zoom-overlay">
+                                    <span className="zoom-icon">🔍</span>
+                                  </div>
+                                </div>
+                                <button
+                                  style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel)', cursor: 'pointer', marginTop: 10 }}
+                                  onClick={() => downloadImage(productImageUrl, 'product-image.png')}
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
+
+                        {/* Custom Product - Show Front/Back Designs */}
+                        {isCustomProduct && (
+                          <>
                         {activeItem?.customDesign?.frontDesign?.previewImage && (
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Front Design</div>
@@ -607,6 +666,8 @@ export function Orders() {
                                 </div>
                               </div>
                             )}
+                          </>
+                        )}
                           </div>
                         </div>
                   )}
