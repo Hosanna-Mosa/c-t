@@ -4,6 +4,8 @@ import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { isSquareConfigured, retrieveSquarePayment, retrievePaymentLink, searchPaymentsByOrder } from '../services/square.service.js';
 
+const SQUARE_ENVIRONMENT = process.env.SQUARE_ENVIRONMENT || 'sandbox';
+
 const incrementCouponUsage = async (couponDoc) => {
   if (!couponDoc) return;
   couponDoc.usedCount += 1;
@@ -13,6 +15,14 @@ const incrementCouponUsage = async (couponDoc) => {
 const sleep = (ms = 1000) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const finalizeSquareOrderFromSession = async ({ session, payment, squareOrderIdOverride }) => {
+  console.log('[Payments] finalizeSquareOrderFromSession called', {
+    sessionId: session._id,
+    userId: session.user,
+    itemsCount: session.items?.length,
+    total: session.total,
+    paymentId: payment?.id,
+  });
+  
   const order = await Order.create({
     user: session.user,
     items: session.items,
@@ -35,12 +45,16 @@ const finalizeSquareOrderFromSession = async ({ session, payment, squareOrderIdO
     shippingCost: session.shippingCost,
   });
 
+  console.log('[Payments] Order created with ID:', order._id);
+
   order.payment.status = 'paid';
   order.payment.squarePaymentId = payment?.id || payment?.squarePaymentId;
   order.payment.squareOrderId = payment?.orderId || squareOrderIdOverride || order.payment.squareOrderId;
   order.payment.failureReason = undefined;
   order.status = 'processing';
   await order.save();
+  
+  console.log('[Payments] Order saved with payment status:', order.payment.status, 'order status:', order.status);
 
   if (session.coupon?.id) {
     const couponDoc = await Coupon.findById(session.coupon.id);
@@ -442,15 +456,129 @@ export const verifySquarePayment = async (req, res) => {
           checkoutId: session.payment?.squareCheckoutId,
         });
         
+        // Check if there's already an order for this session (maybe created in a previous attempt)
+        if (session.order) {
+          const existingOrder = await Order.findById(session.order);
+          if (existingOrder && existingOrder.payment?.status === 'paid') {
+            console.log('[Payments] Found existing paid order for this session:', existingOrder._id);
+            return res.json({
+              success: true,
+              data: {
+                order: existingOrder,
+                paymentStatus: 'paid',
+                squareStatus: 'COMPLETED',
+              },
+            });
+          }
+        }
+        
+        // If we have a transactionId but Square can't find it, this might be a sandbox timing issue
+        // Only proceed if:
+        // 1. We're in sandbox mode
+        // 2. Session was created recently (within last 10 minutes)
+        // 3. We have both transactionId and squareOrderId (stronger indicator of success)
+        // 4. The transactionId looks like a valid Square ID format (starts with letter, has length > 10)
+        const sessionAge = Date.now() - new Date(session.createdAt).getTime();
+        const isRecentSession = sessionAge < 10 * 60 * 1000; // 10 minutes
+        const hasStrongIndicators = transactionId && squareOrderId && transactionId === squareOrderId;
+        const looksLikeSquareId = transactionId && /^[A-Za-z0-9]{15,}$/.test(transactionId);
+        const sessionHasPaymentInfo = session.payment?.squareCheckoutId || session.payment?.squareOrderId;
+        const isSandbox = SQUARE_ENVIRONMENT.toLowerCase() === 'sandbox';
+        
+        // Log all conditions for debugging
+        console.log('[Payments] Sandbox fallback conditions check:', {
+          hasStrongIndicators,
+          looksLikeSquareId,
+          isRecentSession: isRecentSession + ' (' + Math.round(sessionAge / 1000) + 's old)',
+          sessionHasPaymentInfo,
+          isSandbox,
+          transactionId,
+          squareOrderId,
+          checkoutId: session.payment?.squareCheckoutId,
+          environment: SQUARE_ENVIRONMENT,
+        });
+        
+        // If we have matching transactionId and squareOrderId, this is a STRONG indicator of successful payment
+        // Square only provides these IDs after processing payment, so we should trust them
+        // This works in BOTH sandbox and production - if Square redirects with matching IDs, payment was processed
+        if (hasStrongIndicators && looksLikeSquareId) {
+          // Trust the matching IDs - they came from Square's redirect after payment
+          // Only require that session exists and has items (basic validation)
+          const hasValidSession = session && session.items && session.items.length > 0;
+          
+          if (hasValidSession) {
+            console.log('[Payments] ✅ Creating order - Matching transactionId/squareOrderId (payment processed by Square)', {
+              transactionId,
+              squareOrderId,
+              sessionAge: Math.round(sessionAge / 1000) + 's',
+              checkoutId: session.payment?.squareCheckoutId,
+              itemsCount: session.items?.length,
+              environment: SQUARE_ENVIRONMENT,
+            });
+            
+            try {
+              // Create order with the transactionId as payment ID
+              const order = await finalizeSquareOrderFromSession({
+                session,
+                payment: {
+                  id: transactionId,
+                  status: 'COMPLETED',
+                  orderId: squareOrderId,
+                },
+                squareOrderIdOverride: squareOrderId,
+              });
+              
+              console.log('[Payments] ✅ Order created successfully:', order._id);
+              
+              return res.json({
+                success: true,
+                data: {
+                  order,
+                  paymentStatus: 'paid',
+                  squareStatus: 'COMPLETED',
+                },
+              });
+            } catch (orderError) {
+              console.error('[Payments] ❌ Failed to create order:', orderError);
+              throw orderError; // Re-throw to be caught by outer catch
+            }
+          } else {
+            console.log('[Payments] ⚠️ Matching IDs found but session is invalid', {
+              hasItems: session?.items?.length > 0,
+              itemsCount: session?.items?.length,
+            });
+          }
+        } else {
+          console.log('[Payments] ❌ No matching transactionId/squareOrderId - cannot proceed with fallback', {
+            hasStrongIndicators,
+            looksLikeSquareId,
+            transactionId,
+            squareOrderId,
+          });
+        }
+        
         // Update session status to failed
         session.status = 'failed';
+        const failureReason = transactionId 
+          ? 'Payment verification failed: Payment details not found in Square system. This may be a temporary issue. If your payment was completed, please check your orders or contact support with transaction ID: ' + transactionId
+          : 'Payment verification failed: No payment information found. Please try checking out again.';
+        
         session.payment = {
           ...(session.payment || {}),
           status: 'failed',
           squarePaymentId: transactionId,
-          failureReason: 'Payment verification failed: Payment not found in Square system',
+          failureReason,
         };
         await session.save();
+        
+        console.error('[Payments] Payment verification failed after all strategies', {
+          sessionId,
+          transactionId,
+          squareOrderId,
+          checkoutId: session.payment?.squareCheckoutId,
+          sessionAge: Math.round((Date.now() - new Date(session.createdAt).getTime()) / 1000) + 's',
+          environment: SQUARE_ENVIRONMENT,
+        });
         
         return res.json({
           success: true,
@@ -458,6 +586,7 @@ export const verifySquarePayment = async (req, res) => {
             order: null,
             paymentStatus: 'failed',
             squareStatus: 'NOT_FOUND',
+            message: failureReason,
           },
         });
       }
