@@ -290,91 +290,90 @@ export const verifySquarePayment = async (req, res) => {
         
         // If payment is null (404) or retrieval failed, try fallback strategies
         if (!payment) {
-            console.log('[Payments] Payment not found (404), trying fallback strategies...');
-            
-            // Fallback 1: Check payment link status (most reliable for sandbox)
-            const checkoutId = session.payment?.squareCheckoutId;
-            if (checkoutId) {
-              console.log('[Payments] Fallback: Checking payment link status:', checkoutId);
-              try {
-                let paymentLink = null;
-                const maxAttempts = 5;
-                for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-                  paymentLink = await retrievePaymentLink(checkoutId);
-                  if (!paymentLink) break;
-                  
-                  const linkStatus = paymentLink.status;
-                  const relatedPayments = paymentLink.relatedResources?.payments || [];
-                  const hasCompletedPayment = relatedPayments.some((p) => p?.status === 'COMPLETED');
-                  
-                  if (linkStatus === 'COMPLETED' || hasCompletedPayment) {
-                    break;
-                  }
-                  
-                  if (attempt < maxAttempts - 1) {
-                    console.log(`[Payments] Payment link status ${linkStatus || 'unknown'}; waiting before retry (${attempt + 1}/${maxAttempts})`);
-                    await sleep(1500);
-                  }
+          console.log('[Payments] Payment not found (404), trying fallback strategies...');
+          
+          // Fallback 1: Check payment link status (most reliable for sandbox)
+          const checkoutId = session.payment?.squareCheckoutId;
+          if (checkoutId) {
+            console.log('[Payments] Fallback: Checking payment link status:', checkoutId);
+            try {
+              let paymentLink = null;
+              const maxAttempts = 5;
+              for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                paymentLink = await retrievePaymentLink(checkoutId);
+                if (!paymentLink) break;
+                
+                const linkStatus = paymentLink.status;
+                const relatedPayments = paymentLink.relatedResources?.payments || [];
+                const hasCompletedPayment = relatedPayments.some((p) => p?.status === 'COMPLETED');
+                
+                if (linkStatus === 'COMPLETED' || hasCompletedPayment) {
+                  break;
                 }
                 
-                if (paymentLink) {
-                  const linkStatus = paymentLink.status;
-                  console.log('[Payments] Payment link status:', linkStatus);
-                  
-                  if (linkStatus === 'COMPLETED') {
-                    // Try to get payment from related resources
-                    if (paymentLink.relatedResources?.payments) {
-                      const payments = paymentLink.relatedResources.payments || [];
-                      const completedPayment = payments.find(p => p?.status === 'COMPLETED');
-                      if (completedPayment) {
-                        payment = completedPayment;
-                        squareStatus = payment.status;
-                        console.log('[Payments] Found completed payment from payment link:', payment.id);
-                      } else if (payments.length > 0) {
-                        payment = payments[0];
-                        squareStatus = payment.status;
-                        console.log('[Payments] Found payment from payment link:', payment.id, 'status:', squareStatus);
-                      }
-                    }
-                    
-                    // If no payment object but link is COMPLETED, search by order ID
-                    if (!payment && (paymentLink.orderId || squareOrderId || session.payment?.squareOrderId)) {
-                      const orderIdToCheck = paymentLink.orderId || squareOrderId || session.payment?.squareOrderId;
-                      console.log('[Payments] Payment link completed, searching payments by order:', orderIdToCheck);
-                      try {
-                        const payments = await searchPaymentsByOrder(orderIdToCheck);
-                        if (payments && payments.length > 0) {
-                          const completedPayment = payments.find(p => p?.status === 'COMPLETED');
-                          if (completedPayment) {
-                            payment = completedPayment;
-                            squareStatus = payment.status;
-                            console.log('[Payments] Found payment from order search:', payment.id);
-                          } else {
-                            payment = payments[0];
-                            squareStatus = payment.status;
-                            console.log('[Payments] Using first payment from search:', payment.id, 'status:', squareStatus);
-                          }
-                        }
-                      } catch (searchErr) {
-                        console.warn('[Payments] Could not search payments by order:', searchErr?.message);
-                      }
-                    }
-                    
-                    // If still no payment but link is COMPLETED, treat as paid (sandbox mode)
-                    if (!payment && linkStatus === 'COMPLETED') {
-                      console.log('[Payments] Payment link COMPLETED but no payment object found. Treating as paid (sandbox mode).');
-                      payment = {
-                        id: transactionId || checkoutId + '_sandbox',
-                        status: 'COMPLETED',
-                        orderId: paymentLink.orderId || squareOrderId || session.payment?.squareOrderId,
-                      };
-                      squareStatus = 'COMPLETED';
+                if (attempt < maxAttempts - 1) {
+                  console.log(`[Payments] Payment link status ${linkStatus || 'unknown'}; waiting before retry (${attempt + 1}/${maxAttempts})`);
+                  await sleep(1500);
+                }
+              }
+              
+              if (paymentLink) {
+                const linkStatus = paymentLink.status;
+                console.log('[Payments] Payment link status:', linkStatus);
+                
+                if (linkStatus === 'COMPLETED') {
+                  // Try to get payment from related resources
+                  if (paymentLink.relatedResources?.payments) {
+                    const payments = paymentLink.relatedResources.payments || [];
+                    const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                    if (completedPayment) {
+                      payment = completedPayment;
+                      squareStatus = payment.status;
+                      console.log('[Payments] Found completed payment from payment link:', payment.id);
+                    } else if (payments.length > 0) {
+                      payment = payments[0];
+                      squareStatus = payment.status;
+                      console.log('[Payments] Found payment from payment link:', payment.id, 'status:', squareStatus);
                     }
                   }
+                  
+                  // If no payment object but link is COMPLETED, search by order ID
+                  if (!payment && (paymentLink.orderId || squareOrderId || session.payment?.squareOrderId)) {
+                    const orderIdToCheck = paymentLink.orderId || squareOrderId || session.payment?.squareOrderId;
+                    console.log('[Payments] Payment link completed, searching payments by order:', orderIdToCheck);
+                    try {
+                      const payments = await searchPaymentsByOrder(orderIdToCheck);
+                      if (payments && payments.length > 0) {
+                        const completedPayment = payments.find(p => p?.status === 'COMPLETED');
+                        if (completedPayment) {
+                          payment = completedPayment;
+                          squareStatus = payment.status;
+                          console.log('[Payments] Found payment from order search:', payment.id);
+                        } else {
+                          payment = payments[0];
+                          squareStatus = payment.status;
+                          console.log('[Payments] Using first payment from search:', payment.id, 'status:', squareStatus);
+                        }
+                      }
+                    } catch (searchErr) {
+                      console.warn('[Payments] Could not search payments by order:', searchErr?.message);
+                    }
+                  }
+                  
+                  // If still no payment but link is COMPLETED, treat as paid (sandbox mode)
+                  if (!payment && linkStatus === 'COMPLETED') {
+                    console.log('[Payments] Payment link COMPLETED but no payment object found. Treating as paid (sandbox mode).');
+                    payment = {
+                      id: transactionId || checkoutId + '_sandbox',
+                      status: 'COMPLETED',
+                      orderId: paymentLink.orderId || squareOrderId || session.payment?.squareOrderId,
+                    };
+                    squareStatus = 'COMPLETED';
+                  }
                 }
-              } catch (linkErr) {
-                console.warn('[Payments] Payment link check failed:', linkErr?.message);
               }
+            } catch (linkErr) {
+              console.warn('[Payments] Payment link check failed:', linkErr?.message);
             }
           }
           
