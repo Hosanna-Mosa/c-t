@@ -1,4 +1,4 @@
-const renderUrl = 'https://c-t-back.onrender.com/api';
+const renderUrl = 'https://api2.brelis.in/api';
 const local = "http://localhost:8000/api";
 
 const BASE = false ? local : renderUrl;
