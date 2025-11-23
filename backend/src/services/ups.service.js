@@ -13,7 +13,7 @@ const UPS_CLIENT_SECRET = process.env.UPS_CLIENT_SECRET;
 const UPS_ACCESS_TOKEN = process.env.UPS_ACCESS_TOKEN; // Optional: if you have a token already
 const UPS_SHIPPER_NUMBER = process.env.UPS_SHIPPER_NUMBER || '1C384J';
 const UPS_USE_SANDBOX = process.env.UPS_USE_SANDBOX !== 'false'; // Default to sandbox (true)
-
+console.log("ups status :",UPS_USE_SANDBOX);
 // UPS API URLs
 const TOKEN_URL = UPS_USE_SANDBOX 
   ? 'https://wwwcie.ups.com/security/v1/oauth/token'
@@ -535,7 +535,7 @@ export const calculateShippingRate = async ({
       const estimatedDelivery = ratedShipment.EstimatedDelivery;
       
       if (guaranteedDelivery || scheduledDelivery || estimatedDelivery) {
-        console.log('[UPS] Using fallback transit data from Rating API');
+        console.log('[UPS] Using fallback transit data from Rating API' , UPS_USE_SANDBOX);
         transitInfo = {
           businessDaysInTransit: guaranteedDelivery?.BusinessDaysInTransit ||
                                  scheduledDelivery?.BusinessDaysInTransit ||
@@ -566,7 +566,7 @@ export const calculateShippingRate = async ({
       transitInfo: transitInfo, // Full transit info object
     };
     
-    console.log('[UPS] Final rate response with transit info:', JSON.stringify({
+    console.log(`[UPS] Final rate response with transit info: ${UPS_USE_SANDBOX}`, JSON.stringify({
       ...rateResponse,
       cost: rateResponse.cost / 100 + ' USD', // Convert to dollars for logging
     }, null, 2));

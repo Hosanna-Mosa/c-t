@@ -333,71 +333,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="bg-muted/30 py-12 sm:py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-8 sm:mb-12 text-center">
-            <h2 className="mb-4 text-2xl sm:text-3xl font-bold">What Our Customers Say</h2>
-            <p className="text-sm sm:text-base text-muted-foreground">
-              Join thousands of satisfied customers
-            </p>
-          </div>
 
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover-lift">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="mb-3 sm:mb-4 flex">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="mb-3 sm:mb-4 text-sm sm:text-base text-foreground/80">{testimonial.content}</p>
-                  <div>
-                    <div className="font-semibold text-sm sm:text-base">{testimonial.name}</div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">{testimonial.role}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12 sm:py-20 bg-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 gap-8 sm:gap-12 max-w-2xl mx-auto text-center">
-            <div>
-              <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">10M+</div>
-              <div className="text-sm sm:text-base text-muted-foreground">Happy Customers</div>
-            </div>
-            <div>
-              <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">24/7</div>
-              <div className="text-sm sm:text-base text-muted-foreground">Support</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits */}
-      <section className="border-y bg-primary/5 py-6 sm:py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 max-w-2xl mx-auto">
-            {benefits.map((benefit, index) => (
-              <div key={index} className="flex items-center gap-3 sm:gap-4">
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <benefit.icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm sm:text-base">{benefit.title}</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{benefit.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
       <Footer />
     </div>
   );

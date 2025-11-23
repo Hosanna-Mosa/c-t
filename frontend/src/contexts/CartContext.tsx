@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '@/lib/api';
 import { toast } from 'sonner';
+import { log } from 'console';
 
 interface CartItem {
   _id: string;
@@ -74,6 +75,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       const items = await getCart();
+      console.log("cart items :",items);
+      
       setCartItems(items || []);
     } catch (error) {
       console.error('Failed to fetch cart:', error);
