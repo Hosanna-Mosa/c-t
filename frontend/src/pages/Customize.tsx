@@ -3,7 +3,6 @@ import { Canvas as FabricCanvas, FabricImage, FabricText } from "fabric";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +13,6 @@ import {
   Upload,
   Type,
   Trash2,
-  RotateCw,
   Download,
   ShoppingCart,
   ArrowLeft,
@@ -26,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { motion, AnimatePresence } from "framer-motion";
+import jsPDF from "jspdf";
 import { fetchProducts, fetchProductBySlug, saveMyDesign, getMyDesignById, fetchTemplates } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -304,7 +303,7 @@ export default function Customize() {
     backDesignLayersRef.current = backDesignLayers;
   }, [backDesignLayers]);
   const [textColor, setTextColor] = useState("#000000");
-  const [fontSize, setFontSize] = useState(40);
+  const [fontSize] = useState(40);
   const [selectedFont, setSelectedFont] = useState("Arial");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [textInput, setTextInput] = useState("");
@@ -947,10 +946,10 @@ export default function Customize() {
     if (!fabricCanvas) return;
     const active = fabricCanvas.getActiveObject();
     if (active && (active as any).name === "custom-text") {
-      (active as any).set({ fontSize, fill: textColor, fontFamily: selectedFont });
+      (active as any).set({ fill: textColor, fontFamily: selectedFont });
       fabricCanvas.requestRenderAll();
     }
-  }, [fontSize, textColor, selectedFont, fabricCanvas]);
+  }, [textColor, selectedFont, fabricCanvas]);
 
   // Always keep canvas transparent so product background image is visible
   useEffect(() => {
@@ -1058,7 +1057,6 @@ export default function Customize() {
         if (obj.name === "custom-text") {
           // Populate text input with selected text content
           setTextInput(obj.text || "");
-          setFontSize(obj.fontSize || 40);
           setTextColor(obj.fill || "#000000");
           setSelectedFont(obj.fontFamily || "Arial");
         } else {
@@ -1475,14 +1473,11 @@ export default function Customize() {
     } else {
       // Add new text
       const sizePreset = STANDARD_DESIGN_SIZES.find(s => s.id === selectedDesignSize) || STANDARD_DESIGN_SIZES[2];
-      // Calculate font size to fit within the standard size (approximate)
-      const maxDimension = Math.max(sizePreset.width, sizePreset.height);
-      const calculatedFontSize = Math.min(fontSize, maxDimension * 0.3); // Scale font to fit
       
       const text = new FabricText(content, {
         left: 200,
         top: 250,
-        fontSize: calculatedFontSize,
+        fontSize: fontSize,
         fill: textColor,
         fontFamily: selectedFont,
       });
@@ -1624,15 +1619,6 @@ export default function Customize() {
     }
   };
 
-  const handleRotate = () => {
-    if (!fabricCanvas) return;
-    
-    const activeObject = fabricCanvas.getActiveObject();
-    if (activeObject) {
-      activeObject.rotate((activeObject.angle || 0) + 15);
-      fabricCanvas.renderAll();
-    }
-  };
 
   // Helper function to apply size preset to an object
   const applySizePresetToObject = (obj: any, sizePreset: typeof STANDARD_DESIGN_SIZES[0], recalculateFromOriginal: boolean = false) => {
@@ -1746,21 +1732,151 @@ export default function Customize() {
     toast.success(`${designSide === "front" ? "Front" : "Back"} design reset!`);
   };
 
-  const handleDownload = () => {
-    if (!fabricCanvas) return;
-    
-    const dataURL = fabricCanvas.toDataURL({
-      format: "png",
-      quality: 1,
-      multiplier: 2,
-    });
-    
-    const link = document.createElement("a");
-    link.download = "custom-tshirt.png";
-    link.href = dataURL;
-    link.click();
-    
-    toast.success("Design downloaded!");
+  const handleDownload = async () => {
+    if (!fabricCanvas || !selectedProduct || !selectedColor) {
+      toast.error("Please complete all steps before downloading");
+      return;
+    }
+
+    try {
+      // Generate preview for both sides similar to prepareCartItem
+      const generatePreviewForSide = async (side: "front" | "back") => {
+        const targetLayers = side === "front" ? frontDesignLayers : backDesignLayers;
+        
+        // Create a temporary canvas to render that side
+        const tempCanvasEl = document.createElement('canvas');
+        tempCanvasEl.width = 500;
+        tempCanvasEl.height = 600;
+        const tempCanvas = new FabricCanvas(tempCanvasEl, { width: 500, height: 600, backgroundColor: 'transparent' });
+
+        // Base product image for that side
+        if (selectedProduct && selectedColor) {
+          const variant = selectedProduct.variants.find((v) => v.color === selectedColor);
+          const imgUrl = variant ? pickVariantImageForSide(variant, side) : undefined;
+          if (imgUrl) {
+            try {
+              const baseImg = await FabricImage.fromURL(imgUrl, { crossOrigin: 'anonymous' });
+              baseImg.set({ selectable: false, evented: false });
+              const canvasW = 500; const canvasH = 600;
+              const scaleX = canvasW / (baseImg.width || canvasW);
+              const scaleY = canvasH / (baseImg.height || canvasH);
+              const scale = Math.max(scaleX, scaleY);
+              baseImg.scale(scale);
+              const newW = (baseImg.width || 0) * scale;
+              const newH = (baseImg.height || 0) * scale;
+              baseImg.set({ left: (canvasW - newW) / 2, top: (canvasH - newH) / 2 });
+              (baseImg as any).name = 'tshirt-base-photo';
+              tempCanvas.add(baseImg);
+              tempCanvas.sendObjectToBack(baseImg);
+            } catch {}
+          }
+        }
+
+        // Add layers
+        const imagePromises: Promise<any>[] = [];
+        targetLayers.forEach((layer) => {
+          if (layer.type === 'text') {
+            const t = new FabricText(layer.data.content || '', {
+              left: layer.data.x,
+              top: layer.data.y,
+              fontSize: layer.data.size,
+              fill: layer.data.color,
+              fontFamily: layer.data.font,
+              angle: layer.data.rotation,
+              scaleX: layer.data.scale,
+              scaleY: layer.data.scale,
+            });
+            (t as any).name = 'custom-text';
+            (t as any).layerId = layer.id;
+            tempCanvas.add(t);
+          } else if (layer.type === 'image' && layer.data.url) {
+            imagePromises.push(
+              FabricImage.fromURL(layer.data.url).then((img) => {
+                img.set({ left: layer.data.x, top: layer.data.y, angle: layer.data.rotation, scaleX: layer.data.scale, scaleY: layer.data.scale });
+                (img as any).name = 'custom-image';
+                (img as any).layerId = layer.id;
+                tempCanvas.add(img);
+                return img;
+              })
+            );
+          }
+        });
+
+        await Promise.all(imagePromises);
+        tempCanvas.renderAll();
+        const dataURL = tempCanvas.toDataURL({ format: 'png', quality: 1, multiplier: 2 });
+        tempCanvas.dispose();
+        tempCanvasEl.remove();
+        return dataURL;
+      };
+
+      // Generate both sides
+      const frontPreview = await generatePreviewForSide('front');
+      const backPreview = await generatePreviewForSide('back');
+
+      // Create PDF with both designs
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Convert data URLs to image objects
+      const loadImage = (dataUrl: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+      };
+
+      const frontImg = await loadImage(frontPreview);
+      const backImg = await loadImage(backPreview);
+
+      // Calculate dimensions to fit on A4 page (210mm x 297mm)
+      const pageWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const margin = 10;
+      const availableWidth = pageWidth - (margin * 2);
+      const availableHeight = (pageHeight - (margin * 3)) / 2; // Divide by 2 for front and back
+
+      // Calculate scaling to fit images
+      const frontScale = Math.min(
+        availableWidth / (frontImg.width * 0.264583), // Convert px to mm (1px = 0.264583mm at 96dpi)
+        availableHeight / (frontImg.height * 0.264583)
+      );
+      const backScale = Math.min(
+        availableWidth / (backImg.width * 0.264583),
+        availableHeight / (backImg.height * 0.264583)
+      );
+
+      const frontWidth = frontImg.width * 0.264583 * frontScale;
+      const frontHeight = frontImg.height * 0.264583 * frontScale;
+      const backWidth = backImg.width * 0.264583 * backScale;
+      const backHeight = backImg.height * 0.264583 * backScale;
+
+      // Center images horizontally
+      const frontX = (pageWidth - frontWidth) / 2;
+      const backX = (pageWidth - backWidth) / 2;
+
+      // Add front design
+      pdf.setFontSize(12);
+      pdf.text('Front Design', pageWidth / 2, margin + 5, { align: 'center' });
+      pdf.addImage(frontPreview, 'PNG', frontX, margin + 8, frontWidth, frontHeight);
+
+      // Add back design
+      const backY = margin + 8 + frontHeight + 15;
+      pdf.text('Back Design', pageWidth / 2, backY - 5, { align: 'center' });
+      pdf.addImage(backPreview, 'PNG', backX, backY, backWidth, backHeight);
+
+      // Download PDF
+      pdf.save(`custom-tshirt-design-${Date.now()}.pdf`);
+      toast.success("Design PDF downloaded!");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download designs");
+    }
   };
 
 
@@ -2391,10 +2507,10 @@ export default function Customize() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0 }}
             >
-        <div className="flex flex-col lg:grid lg:grid-cols-[minmax(280px,400px)_1fr_minmax(280px,300px)] gap-4 sm:gap-6 lg:gap-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-[minmax(280px,400px)_1fr_minmax(280px,300px)] gap-2 sm:gap-3 lg:gap-4">
           {/* Left Sidebar - Product Options */}
           <Card className="h-fit order-1 lg:order-1">
-            <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
               <div>
                       <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Design Side</Label>
                       <div className="grid grid-cols-2 gap-2 mb-3 sm:mb-4">
@@ -2418,7 +2534,7 @@ export default function Customize() {
                 </div>
               </div>
 
-                    <div className="border-t pt-3 sm:pt-4">
+                    <div className="border-t pt-2 sm:pt-2.5">
                 <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Size</Label>
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   {SIZES.map((size) => (
@@ -2434,8 +2550,8 @@ export default function Customize() {
                 </div>
               </div>
 
-              <div className="border-t pt-3 sm:pt-4">
-                <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Product Color</Label>
+              <div className="border-t pt-2 sm:pt-2.5">
+                <Label className="mb-2 block text-sm sm:text-base font-semibold">Product Color</Label>
                 {selectedProduct && selectedProduct.variants && selectedProduct.variants.length > 0 && (
                   <div className="space-y-3">
                     {/* Color Dropdown Trigger */}
@@ -2485,8 +2601,8 @@ export default function Customize() {
                 )}
               </div>
 
-              <div className="border-t pt-3 sm:pt-4">
-                <div className="space-y-2 sm:space-y-3">
+              <div className="border-t pt-2 sm:pt-2.5">
+                <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Base Price:</span>
                     <span className="font-medium">${basePrice.toFixed(2)}</span>
@@ -2511,6 +2627,39 @@ export default function Customize() {
                     <span className="text-primary">${totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="border-t pt-2 sm:pt-2.5 mt-2 sm:mt-2.5">
+                <Button 
+                  onClick={() => {
+                    if (!fabricCanvas || !selectedProduct || !selectedColor) {
+                      toast.error("Please complete all steps before adding to cart");
+                      return;
+                    }
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                      toast.error("Please login to add items to cart");
+                      return;
+                    }
+                    setInstructionDialogOpen(true);
+                  }}
+                  className="w-full gradient-hero shadow-primary h-10 sm:h-11 text-xs sm:text-sm font-semibold"
+                  disabled={addingToCart}
+                >
+                  {addingToCart ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+                      <span className="hidden sm:inline">Adding to Cart...</span>
+                      <span className="sm:hidden">Adding...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Add to Cart</span>
+                      <span className="sm:hidden">Add to Cart</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -2541,11 +2690,6 @@ export default function Customize() {
             )}
 
             <div className="flex flex-wrap gap-2 justify-center w-full px-2">
-              <Button variant="outline" size="sm" onClick={handleRotate} className="text-xs sm:text-sm">
-                <RotateCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Rotate</span>
-                <span className="sm:hidden">↻</span>
-              </Button>
               <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="text-xs sm:text-sm">
                 <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Delete</span>
@@ -2586,9 +2730,9 @@ export default function Customize() {
 
           {/* Right Sidebar - Customization Tools */}
           <Card className="h-fit order-2 lg:order-3">
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-4">
               {/* Design Size Selector */}
-              <div className="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b">
+              <div className="mb-2 sm:mb-3 pb-2 sm:pb-3 border-b">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <Label className="text-sm sm:text-base font-semibold">Design Size</Label>
                   <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
@@ -2651,7 +2795,7 @@ export default function Customize() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   {STANDARD_DESIGN_SIZES.map((size) => (
                     <Button
                       key={size.id}
@@ -2664,11 +2808,11 @@ export default function Customize() {
                           handleChangeObjectSize(size.id);
                         }
                       }}
-                      className="flex flex-col h-auto py-2 text-xs"
+                      className="flex flex-col h-auto py-1.5 text-[10px]"
                     >
-                      <span className="text-xs font-medium leading-tight">{size.name}</span>
-                      <span className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{size.description}</span>
-                      <span className="text-xs font-semibold text-primary mt-0.5">${size.price}</span>
+                      <span className="text-[10px] font-medium leading-tight">{size.name}</span>
+                      <span className="text-[9px] text-muted-foreground leading-tight">{size.description}</span>
+                      <span className="text-[10px] font-semibold text-primary mt-0.5">${size.price}</span>
                     </Button>
                   ))}
                 </div>
@@ -2691,23 +2835,40 @@ export default function Customize() {
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="text" className="space-y-3 sm:space-y-4 pt-3 sm:pt-4">
+                <TabsContent value="text" className="space-y-2 sm:space-y-2.5 pt-2 sm:pt-2.5">
                   <div>
-                    <Label className="mb-2 block text-xs sm:text-sm">Your Text</Label>
+                    <Label className="mb-1.5 block text-xs sm:text-sm">Your Text</Label>
                     <Input
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Type here..."
-                      className="mb-3 sm:mb-4 text-sm sm:text-base h-9 sm:h-10"
+                      className="mb-2 text-sm sm:text-base h-9 sm:h-10"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAddText();
                       }}
                     />
-                    <Label className="mb-2 block text-xs sm:text-sm">Font</Label>
+                  </div>
+
+                  <div>
+                    <Label className="mb-1.5 block text-xs sm:text-sm">Text Color & Font</Label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowColorPicker(!showColorPicker)}
+                          className="h-9 w-9 rounded-full border-2 border-border shadow-sm hover:scale-105 transition-transform"
+                          style={{ backgroundColor: textColor }}
+                          title="Text Color"
+                        />
+                        {showColorPicker && (
+                          <div className="absolute top-full left-0 mt-2 rounded-lg border p-2 sm:p-3 bg-background z-50 shadow-lg">
+                            <HexColorPicker color={textColor} onChange={setTextColor} style={{ width: '200px' }} />
+                          </div>
+                        )}
+                      </div>
                     <select
                       value={selectedFont}
                       onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm h-9 sm:h-10"
+                        className="flex-1 rounded-md border border-input bg-background px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm h-9"
                     >
                       {FONTS.map((font) => (
                         <option key={font} value={font}>
@@ -2715,33 +2876,6 @@ export default function Customize() {
                         </option>
                       ))}
                     </select>
-                  </div>
-
-                  <div>
-                    <Label className="mb-2 block text-xs sm:text-sm">Font Size: {fontSize}px</Label>
-                    <Slider
-                      value={[fontSize]}
-                      onValueChange={(value) => setFontSize(value[0])}
-                      min={20}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="mb-2 block text-xs sm:text-sm">Text Color</Label>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setShowColorPicker(!showColorPicker)}
-                        className="h-9 sm:h-10 w-full rounded-md border-2 border-border"
-                        style={{ backgroundColor: textColor }}
-                      />
-                      {showColorPicker && (
-                        <div className="rounded-lg border p-2 sm:p-3">
-                          <HexColorPicker color={textColor} onChange={setTextColor} style={{ width: '100%' }} />
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -2751,9 +2885,9 @@ export default function Customize() {
                   </Button>
                 </TabsContent>
 
-                <TabsContent value="image" className="space-y-3 sm:space-y-4 pt-3 sm:pt-4">
+                <TabsContent value="image" className="space-y-2 sm:space-y-2.5 pt-2 sm:pt-2.5">
                   <div>
-                    <Label className="mb-2 block text-xs sm:text-sm">Upload Image</Label>
+                    <Label className="mb-1.5 block text-xs sm:text-sm">Upload Image</Label>
                     <div className="rounded-lg border-2 border-dashed border-border p-4 sm:p-8 text-center">
                       <Upload className="mx-auto mb-2 h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                       <p className="mb-2 text-xs sm:text-sm text-muted-foreground">
@@ -2781,41 +2915,6 @@ export default function Customize() {
                 </TabsContent>
               </Tabs>
 
-              <div className="mt-4 sm:mt-6 space-y-3 border-t pt-4 sm:pt-6">
-                <Button 
-                  onClick={() => {
-                    if (!fabricCanvas || !selectedProduct || !selectedColor) {
-                      toast.error("Please complete all steps before adding to cart");
-                      return;
-                    }
-                    const token = localStorage.getItem('token');
-                    if (!token) {
-                      toast.error("Please login to add items to cart");
-                      return;
-                    }
-                    setInstructionDialogOpen(true);
-                  }}
-                  className="w-full gradient-hero shadow-primary h-10 sm:h-11 text-xs sm:text-sm font-semibold"
-                  disabled={addingToCart}
-                >
-                  {addingToCart ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
-                      <span className="hidden sm:inline">Adding to Cart...</span>
-                      <span className="sm:hidden">Adding...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden sm:inline">Add to Cart</span>
-                      <span className="sm:hidden">Add to Cart</span>
-                    </>
-                  )}
-                </Button>
-                <p className="text-center text-[10px] sm:text-xs text-muted-foreground">
-                  Free shipping on orders over $50
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -2823,13 +2922,13 @@ export default function Customize() {
           )}
         </AnimatePresence>
 
-        {selectedProduct?.description && (
+        {/* {selectedProduct?.description && (
           <div className="mt-6">
             <div className="max-w-3xl mx-auto text-sm text-muted-foreground leading-relaxed">
               {selectedProduct.description}
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       <Footer />

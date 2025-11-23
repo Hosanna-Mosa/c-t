@@ -12,7 +12,7 @@ import { AddressSelector } from '@/components/AddressSelector'
 import { createOrderFromCart, getMe, getActiveCoupons, applyCoupon, getAllShippingOptions } from '@/lib/api'
 import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/hooks/use-auth'
-import { ShoppingBag, CreditCard, Truck, Shield, Tag, X, Clock } from 'lucide-react'
+import { ShoppingBag, CreditCard, Truck, Tag, X, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
 type AppliedCoupon = {
@@ -572,8 +572,45 @@ export default function Checkout() {
                 </CardContent>
               </Card>
 
-              {/* Order Summary */}
+              {/* Address Selection */}
+              <AddressSelector 
+                selectedAddressId={selectedAddressId}
+                onAddressSelect={setSelectedAddressId}
+                onAddressUpdate={handleAddressUpdate}
+              />
+
+              {/* Payment Method */}
               <Card className="border-2 shadow-lg">
+                <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-transparent">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    Payment Method
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cod' | 'square')}>
+                    <div className="flex items-center space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer">
+                      <RadioGroupItem value="cod" id="cod" />
+                      <Label htmlFor="cod" className="flex items-center gap-2 cursor-pointer flex-1">
+                        <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-sm sm:text-base font-medium">Cash on Delivery</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer mt-3">
+                      <RadioGroupItem value="square" id="square" />
+                      <Label htmlFor="square" className="flex items-center gap-2 cursor-pointer flex-1">
+                        <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-sm sm:text-base font-medium">Square Secure Checkout</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column - Order Actions */}
+            <div className="lg:w-80 xl:w-96 lg:sticky lg:top-24 lg:self-start mt-4 lg:mt-0">
+              <Card className="border-2 shadow-xl">
                 <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-transparent">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                     <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -730,73 +767,6 @@ export default function Checkout() {
                       <span className="text-xl sm:text-2xl font-bold text-primary">
                         ${Number(total).toFixed(2)}
                       </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Address Selection */}
-              <AddressSelector 
-                selectedAddressId={selectedAddressId}
-                onAddressSelect={setSelectedAddressId}
-                onAddressUpdate={handleAddressUpdate}
-              />
-
-              {/* Payment Method */}
-              <Card className="border-2 shadow-lg">
-                <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-transparent">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    Payment Method
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6">
-                  <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cod' | 'square')}>
-                    <div className="flex items-center space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer">
-                      <RadioGroupItem value="cod" id="cod" />
-                      <Label htmlFor="cod" className="flex items-center gap-2 cursor-pointer flex-1">
-                        <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
-                        <span className="text-sm sm:text-base font-medium">Cash on Delivery</span>
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer mt-3">
-                      <RadioGroupItem value="square" id="square" />
-                      <Label htmlFor="square" className="flex items-center gap-2 cursor-pointer flex-1">
-                        <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
-                        <span className="text-sm sm:text-base font-medium">Square Secure Checkout</span>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Column - Order Actions */}
-            <div className="lg:w-80 xl:w-96 lg:sticky lg:top-24 lg:self-start mt-4 lg:mt-0">
-              <Card className="border-2 shadow-xl">
-                <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-transparent">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    Secure Checkout
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 space-y-4">
-                  <div className="space-y-2.5 text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600 mt-0.5">✓</span>
-                      <p>Your payment information is secure and encrypted</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600 mt-0.5">✓</span>
-                      <p>Free shipping on all orders</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600 mt-0.5">✓</span>
-                      <p>30-day return policy</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600 mt-0.5">✓</span>
-                      <p>24/7 customer support</p>
                     </div>
                   </div>
                   
