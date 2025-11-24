@@ -1,8 +1,16 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 
+const resolveBaseUrl = () => {
+  const envBase = (import.meta as any).env?.VITE_API_BASE
+  if (envBase) return envBase
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:8000/api'
+  }
+  return 'https://customtees-backend-d6t2.onrender.com/api'
+}
 
-const API_BASE = "https://api.cbm360tiv.com/api";
+const API_BASE = resolveBaseUrl()
 
 function getAuthToken(): string | null {
   return localStorage.getItem('admin_auth_token')
