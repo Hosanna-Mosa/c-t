@@ -8,36 +8,33 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
   Legend
 } from 'recharts'
 
-// Dummy Data for Charts
-const revenueData = [
-  { name: 'Jan', revenue: 4000, orders: 240 },
-  { name: 'Feb', revenue: 3000, orders: 139 },
-  { name: 'Mar', revenue: 2000, orders: 980 },
-  { name: 'Apr', revenue: 2780, orders: 390 },
-  { name: 'May', revenue: 1890, orders: 480 },
-  { name: 'Jun', revenue: 2390, orders: 380 },
-  { name: 'Jul', revenue: 3490, orders: 430 },
-]
-
-const categoryData = [
-  { name: 'Custom Tees', value: 400 },
-  { name: 'Casual Wear', value: 300 },
-  { name: 'DTF Prints', value: 300 },
-  { name: 'Accessories', value: 200 },
-]
-
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444']
 
+interface DashboardStats {
+  users: number;
+  products: number;
+  orders: number;
+  revenue: number;
+  revenueData: Array<{ name: string; revenue: number; orders: number }>;
+  categoryData: Array<{ name: string; value: number }>;
+  recentOrders: Array<{
+    id: string;
+    user: { name: string; email: string };
+    product: string;
+    amount: number;
+    status: string;
+    date: string;
+  }>;
+}
+
 export function Dashboard() {
-  const [stats, setStats] = useState<{ users: number; products: number; orders: number } | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,9 +73,7 @@ export function Dashboard() {
         </div>
         <div className="date-filter">
           <select style={{ width: 'auto' }}>
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>This Year</option>
+            <option>Last 7 Months</option>
           </select>
         </div>
       </div>
@@ -95,7 +90,7 @@ export function Dashboard() {
             <div className="stat-label">Total Orders</div>
             <div className="stat-value">{stats ? stats.orders : '—'}</div>
             <div className="stat-trend positive">
-              <span>↑ 12%</span> from last month
+              <span>All time</span>
             </div>
           </div>
         </div>
@@ -108,7 +103,7 @@ export function Dashboard() {
             <div className="stat-label">Total Products</div>
             <div className="stat-value">{stats ? stats.products : '—'}</div>
             <div className="stat-trend positive">
-              <span>↑ 4%</span> new added
+              <span>Active</span>
             </div>
           </div>
         </div>
@@ -118,10 +113,10 @@ export function Dashboard() {
             👥
           </div>
           <div className="stat-content">
-            <div className="stat-label">Active Users</div>
+            <div className="stat-label">Total Users</div>
             <div className="stat-value">{stats ? stats.users : '—'}</div>
-            <div className="stat-trend negative">
-              <span>↓ 1%</span> from last month
+            <div className="stat-trend positive">
+              <span>Registered</span>
             </div>
           </div>
         </div>
@@ -132,9 +127,9 @@ export function Dashboard() {
           </div>
           <div className="stat-content">
             <div className="stat-label">Total Revenue</div>
-            <div className="stat-value">$12,450</div>
+            <div className="stat-value">${stats ? stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</div>
             <div className="stat-trend positive">
-              <span>↑ 8%</span> from last month
+              <span>All time</span>
             </div>
           </div>
         </div>
@@ -147,7 +142,7 @@ export function Dashboard() {
           <h3>Revenue Overview</h3>
           <div style={{ height: 300, marginTop: 20 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <AreaChart data={stats?.revenueData || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.8} />
@@ -160,6 +155,7 @@ export function Dashboard() {
                 <Tooltip
                   contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow)' }}
                   itemStyle={{ color: 'var(--text)' }}
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#4f46e5" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
               </AreaChart>
@@ -174,7 +170,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={categoryData}
+                  data={stats?.categoryData || []}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -183,7 +179,7 @@ export function Dashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
+                  {(stats?.categoryData || []).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -202,7 +198,6 @@ export function Dashboard() {
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3>Recent Orders</h3>
-          <button className="secondary" style={{ padding: '8px 16px', fontSize: 13 }}>View All</button>
         </div>
         <div className="table-container" style={{ overflowX: 'auto' }}>
           <table className="table">
@@ -217,34 +212,42 @@ export function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <tr key={i}>
-                  <td>#ORD-00{i}</td>
+              {(stats?.recentOrders || []).map((order) => (
+                <tr key={order.id}>
+                  <td>#{order.id.slice(-6).toUpperCase()}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
-                        U{i}
+                        {order.user.name.charAt(0).toUpperCase()}
                       </div>
-                      <span>User {i}</span>
+                      <span>{order.user.name}</span>
                     </div>
                   </td>
-                  <td>Custom T-Shirt Premium</td>
-                  <td style={{ fontWeight: 600 }}>${(45 * i).toFixed(2)}</td>
+                  <td>{order.product}</td>
+                  <td style={{ fontWeight: 600 }}>${order.amount.toFixed(2)}</td>
                   <td>
                     <span style={{
                       padding: '4px 12px',
                       borderRadius: 20,
                       fontSize: 12,
                       fontWeight: 600,
-                      background: i % 3 === 0 ? 'var(--success-light)' : i % 3 === 1 ? 'var(--warning-light)' : 'var(--primary-light)',
-                      color: i % 3 === 0 ? 'var(--success)' : i % 3 === 1 ? 'var(--warning)' : 'var(--primary)'
+                      background: order.status === 'delivered' ? 'var(--success-light)' : order.status === 'placed' ? 'var(--warning-light)' : 'var(--primary-light)',
+                      color: order.status === 'delivered' ? 'var(--success)' : order.status === 'placed' ? 'var(--warning)' : 'var(--primary)',
+                      textTransform: 'capitalize'
                     }}>
-                      {i % 3 === 0 ? 'Completed' : i % 3 === 1 ? 'Pending' : 'Processing'}
+                      {order.status}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>Oct {10 + i}, 2023</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{new Date(order.date).toLocaleDateString()}</td>
                 </tr>
               ))}
+              {(stats?.recentOrders || []).length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
+                    No orders found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -181,10 +181,23 @@ export function DTFProducts() {
   }
 
   return (
-    <section>
-      <div className="section-header">
-        <h2>DTF Products</h2>
-        <button className="primary" onClick={handleOpenCreate}>
+    <section className="dtf-experience">
+      <div className="dtf-heading-row">
+        <div>
+          <p className="dtf-section-label">Direct-To-Film Catalog</p>
+          <h2>DTF Products</h2>
+          <p className="dtf-heading-subtitle">
+            {products.length > 0
+              ? `Curated grid of ${products.length} ready-to-print artworks.`
+              : 'Build a vibrant, print-ready catalog in minutes.'}
+          </p>
+          <div className="dtf-heading-chips">
+            <span className="dtf-chip">Print-ready</span>
+            <span className="dtf-chip">High-res uploads</span>
+            <span className="dtf-chip">Instant fulfillment</span>
+          </div>
+        </div>
+        <button className="primary dtf-action" onClick={handleOpenCreate}>
           Add New
         </button>
       </div>
@@ -199,17 +212,19 @@ export function DTFProducts() {
           </button>
         </div>
       ) : (
-        <div className="products-grid">
+        <div className="dtf-showcase-grid">
           {products.map((product) => (
-            <div key={product._id} className="product-card">
-              {product.image?.url && (
-                <div className="dtf-card-media">
+            <article key={product._id} className="dtf-showcase-card">
+              <div className="dtf-media">
+                {product.image?.url ? (
                   <img src={product.image.url} alt={product.title} />
-                </div>
-              )}
-              <div className="product-header">
-                <h3 className="product-name">{product.title}</h3>
-                <div className="product-actions">
+                ) : (
+                  <div className="dtf-card-no-image">
+                    <span>📷</span>
+                    <p>No Image</p>
+                  </div>
+                )}
+                <div className="dtf-floating-actions">
                   <button className="edit-btn" onClick={() => handleOpenEdit(product)} title="Edit">
                     ✏️
                   </button>
@@ -219,41 +234,56 @@ export function DTFProducts() {
                     disabled={deletingId === product._id}
                     title="Delete"
                   >
-                    {deletingId === product._id ? '⏳' : '🗑️'}
+                    {deletingId === product._id ? <span className="loading-spinner" /> : '🗑️'}
                   </button>
                 </div>
               </div>
-              <div className="product-details" style={{ gap: 12 }}>
-                <div className="detail-row">
-                  <span className="label">Slug:</span>
-                  <span className="value">{product.slug}</span>
+
+              <div className="dtf-details">
+                <div className="dtf-title-row">
+                  <div>
+                    <h3>{product.title}</h3>
+                    <p className="dtf-slug">/{product.slug}</p>
+                  </div>
+                  <span className="dtf-price-badge">${product.cost.toFixed(2)}</span>
                 </div>
-                <div className="detail-row">
-                  <span className="label">Cost:</span>
-                  <span className="value">${product.cost.toFixed(2)}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Created:</span>
-                  <span className="value">
-                    {new Date(product.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Description:</span>
-                  <span className="value">
-                    {product.description
-                      ? product.description.length > 140
-                        ? `${product.description.slice(0, 140)}…`
-                        : product.description
-                      : '—'}
-                  </span>
+
+                {product.description && (
+                  <p className="dtf-card-desc">
+                    {product.description.length > 140
+                      ? `${product.description.slice(0, 140)}...`
+                      : product.description}
+                  </p>
+                )}
+
+                <div className="dtf-meta">
+                  <div>
+                    <span className="dtf-meta-label">Created</span>
+                    <span className="dtf-meta-value">
+                      {new Date(product.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="dtf-meta-label">Updated</span>
+                    <span className="dtf-meta-value">
+                      {new Date(product.updatedAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="dtf-meta-label">ID</span>
+                    <span className="dtf-meta-value dtf-id">{product._id.slice(-6)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

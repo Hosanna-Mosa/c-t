@@ -8,7 +8,7 @@ import { Products } from './pages/Products'
 import { CasualProducts } from './pages/CasualProducts'
 import { Orders } from './pages/Orders'
 import { Users } from './pages/Users'
-import { Settings } from './pages/Settings'
+// import { Settings } from './pages/Settings'
 
 import { HomeSettings } from './pages/HomeSettings'
 import { Coupons } from './pages/Coupons'
@@ -40,7 +40,7 @@ export default function App() {
           <Route path="coupons" element={<Coupons />} />
           <Route path="templates" element={<Templates />} />
           <Route path="home" element={<HomeSettings />} />
-          <Route path="settings" element={<Settings />} />
+          {/* <Route path="settings" element={<Settings />} /> */}
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
