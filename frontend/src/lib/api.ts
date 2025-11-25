@@ -1,7 +1,7 @@
 const renderUrl = 'https://api2.brelis.in/api';
 const local = "http://localhost:8000/api";
 
-const BASE = true ? local : renderUrl;
+const BASE = false ? local : renderUrl;
 export const API_BASE_URL = BASE;
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
