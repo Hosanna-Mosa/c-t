@@ -18,11 +18,11 @@ type TrackingSummary = {
   updatedAt?: string
 }
 
-type Order = { 
-  _id: string; 
-  total?: number; 
-  status?: string; 
-  user?: any; 
+type Order = {
+  _id: string;
+  total?: number;
+  status?: string;
+  user?: any;
   items?: any[];
   shippingAddress?: any;
   paymentMethod?: string;
@@ -174,7 +174,7 @@ export function Orders() {
   const storefrontUrl = typeof storefrontBase === 'string' ? storefrontBase.replace(/\/$/, '') : 'http://localhost:5173'
   const hasStoredLabel = Boolean(selectedOrder?.trackingNumber || selectedOrder?.labelUrl)
   const labelDownloadPath = selectedOrder?.labelUrl || null
-  const labelUrl = labelDownloadPath 
+  const labelUrl = labelDownloadPath
     ? (labelDownloadPath.startsWith('http') ? labelDownloadPath : `${fileBase}${labelDownloadPath}`)
     : null
   const showGenerateForm = !hasStoredLabel && selectedOrder?.status !== 'shipped'
@@ -220,8 +220,8 @@ export function Orders() {
     try {
       setLoadingOrder(orderId)
       const response = await api.getOrderById(orderId)
-      console.log("order details :",response.data);
-      
+      console.log("order details :", response.data);
+
       setSelectedOrder(response.data)
       setPackageForm({
         weight: '1',
@@ -278,16 +278,16 @@ export function Orders() {
         prev.map((order) =>
           order._id === selectedOrder._id
             ? {
-                ...order,
-                status: response.status || 'shipped',
-                trackingNumber: response.trackingNumber,
-                labelUrl: response.labelUrl,
-                shipmentStatus: response.shipmentStatus || 'label_generated',
-              }
+              ...order,
+              status: response.status || 'shipped',
+              trackingNumber: response.trackingNumber,
+              labelUrl: response.labelUrl,
+              shipmentStatus: response.shipmentStatus || 'label_generated',
+            }
             : order
         )
       )
-      
+
       // Automatically download the PDF to browser from backend endpoint
       if (response.labelUrl) {
         const fileName = `UPS_Label_${selectedOrder._id.slice(-6)}.pdf`
@@ -295,7 +295,7 @@ export function Orders() {
           // Download from backend endpoint which handles Google Drive OAuth
           const token = localStorage.getItem('admin_auth_token')
           const downloadUrl = `${apiBase}/shipment/download-label/${selectedOrder._id}`
-          
+
           const downloadResponse = await fetch(downloadUrl, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -322,7 +322,7 @@ export function Orders() {
           // Don't throw error - label is still generated successfully
         }
       }
-      
+
       await reloadOrder(selectedOrder._id)
     } catch (e: any) {
       console.error('[Admin] UPS label generation failed', e)
@@ -419,7 +419,7 @@ export function Orders() {
     !['carrier_handoff', 'in_transit', 'delivered'].includes(shipmentStatus)
 
   return (
-    <section>
+    <section className="legacy-mode">
       <h2>Orders</h2>
       {error && <div className="error">{error}</div>}
       <table className="table">
@@ -465,7 +465,7 @@ export function Orders() {
               <h3>Order Details - #{selectedOrder._id.slice(-6)}</h3>
               <button className="close-btn" onClick={closeOrderDialog}>×</button>
             </div>
-            
+
             <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* Design Previews Section */}
               {selectedOrder.items && selectedOrder.items.length > 0 && (
@@ -479,35 +479,35 @@ export function Orders() {
                     </div>
                   ) : (
                     <div className="design-preview-card" key={activeItemIndex}>
-                          <div className="design-preview-header">
-                            <h5 style={{ margin: '0', fontSize: '16px', fontWeight: '600' }}>
+                      <div className="design-preview-header">
+                        <h5 style={{ margin: '0', fontSize: '16px', fontWeight: '600' }}>
                           {activeItem?.product?.name || activeItem?.productName || 'Unknown Product'}
-                            </h5>
-                            <div style={{ fontSize: '14px', color: 'var(--muted)' }}>
+                        </h5>
+                        <div style={{ fontSize: '14px', color: 'var(--muted)' }}>
                           {(isCustomProduct ? activeItem?.customDesign?.selectedColor : activeItem?.selectedColor) || '—'} • {(isCustomProduct ? activeItem?.customDesign?.selectedSize : activeItem?.selectedSize) || '—'}
-                            </div>
+                        </div>
                         {activeItem?.instruction && (
-                              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f5f5f5', borderRadius: 8, fontSize: 13, color: '#444' }}>
-                                <strong style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Customer Instructions</strong>
+                          <div style={{ marginTop: 8, padding: '8px 10px', background: '#f5f5f5', borderRadius: 8, fontSize: 13, color: '#444' }}>
+                            <strong style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Customer Instructions</strong>
                             <span style={{ whiteSpace: 'pre-wrap' }}>{activeItem.instruction}</span>
-                              </div>
-                            )}
                           </div>
-                          
-                          <div className="design-preview-grid">
+                        )}
+                      </div>
+
+                      <div className="design-preview-grid">
                         {/* Casual Product - Show Product Images */}
                         {isCasualProduct && (() => {
                           const productImages = activeItem?.product?.images || []
                           const productImageUrl = activeItem?.productImage || activeItem?.product?.images?.[0]?.url
-                          
+
                           if (productImages.length > 0) {
                             return productImages.map((img: any, imgIdx: number) => (
                               <div key={imgIdx} className="design-preview-item">
                                 <div className="design-preview-label">Product Image {imgIdx + 1}</div>
                                 <div className="design-preview-container" onClick={() => openImageZoom(img.url)}>
-                                  <img 
+                                  <img
                                     src={img.url}
-                                    alt={`Product ${imgIdx + 1}`} 
+                                    alt={`Product ${imgIdx + 1}`}
                                     className="design-preview-image"
                                   />
                                   <div className="zoom-overlay">
@@ -527,9 +527,9 @@ export function Orders() {
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Product Image</div>
                                 <div className="design-preview-container" onClick={() => openImageZoom(productImageUrl)}>
-                                  <img 
+                                  <img
                                     src={productImageUrl}
-                                    alt="Product" 
+                                    alt="Product"
                                     className="design-preview-image"
                                   />
                                   <div className="zoom-overlay">
@@ -551,22 +551,22 @@ export function Orders() {
                         {/* Custom Product - Show Front/Back Designs */}
                         {isCustomProduct && (
                           <>
-                        {activeItem?.customDesign?.frontDesign?.previewImage && (
+                            {activeItem?.customDesign?.frontDesign?.previewImage && (
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Front Design</div>
-                            <div className="design-preview-container" onClick={() => openImageZoom(activeItem.customDesign!.frontDesign!.previewImage!)}>
-                                  <img 
-                                src={activeItem.customDesign.frontDesign.previewImage}
-                                    alt="Front Design" 
+                                <div className="design-preview-container" onClick={() => openImageZoom(activeItem.customDesign!.frontDesign!.previewImage!)}>
+                                  <img
+                                    src={activeItem.customDesign.frontDesign.previewImage}
+                                    alt="Front Design"
                                     className="design-preview-image"
                                   />
                                   <div className="zoom-overlay">
                                     <span className="zoom-icon">🔍</span>
                                   </div>
                                 </div>
-                            {activeItem.customDesign.frontDesign?.designLayers && activeItem.customDesign.frontDesign.designLayers.length > 0 && (
+                                {activeItem.customDesign.frontDesign?.designLayers && activeItem.customDesign.frontDesign.designLayers.length > 0 && (
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
-                                {activeItem.customDesign.frontDesign.designLayers.map((layer: any, lIdx: number) => (
+                                    {activeItem.customDesign.frontDesign.designLayers.map((layer: any, lIdx: number) => (
                                       layer?.data?.url ? (
                                         <div key={layer.id || `front-layer-${lIdx}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                                           <img
@@ -597,23 +597,23 @@ export function Orders() {
                                 )}
                               </div>
                             )}
-                            
-                        {activeItem?.customDesign?.backDesign?.previewImage && (
+
+                            {activeItem?.customDesign?.backDesign?.previewImage && (
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Back Design</div>
-                            <div className="design-preview-container" onClick={() => openImageZoom(activeItem.customDesign!.backDesign!.previewImage!)}>
-                                  <img 
-                                src={activeItem.customDesign.backDesign.previewImage}
-                                    alt="Back Design" 
+                                <div className="design-preview-container" onClick={() => openImageZoom(activeItem.customDesign!.backDesign!.previewImage!)}>
+                                  <img
+                                    src={activeItem.customDesign.backDesign.previewImage}
+                                    alt="Back Design"
                                     className="design-preview-image"
                                   />
                                   <div className="zoom-overlay">
                                     <span className="zoom-icon">🔍</span>
                                   </div>
                                 </div>
-                            {activeItem.customDesign.backDesign?.designLayers && activeItem.customDesign.backDesign.designLayers.length > 0 && (
+                                {activeItem.customDesign.backDesign?.designLayers && activeItem.customDesign.backDesign.designLayers.length > 0 && (
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10 }}>
-                                {activeItem.customDesign.backDesign.designLayers.map((layer: any, lIdx: number) => (
+                                    {activeItem.customDesign.backDesign.designLayers.map((layer: any, lIdx: number) => (
                                       layer?.data?.url ? (
                                         <div key={layer.id || `back-layer-${lIdx}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                                           <img
@@ -644,8 +644,8 @@ export function Orders() {
                                 )}
                               </div>
                             )}
-                            
-                        {activeItem?.customDesign?.frontDesign?.previewImage && !activeItem?.customDesign?.backDesign?.previewImage && (
+
+                            {activeItem?.customDesign?.frontDesign?.previewImage && !activeItem?.customDesign?.backDesign?.previewImage && (
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Back Design</div>
                                 <div className="design-preview-container" style={{ background: 'var(--panel)', border: '2px dashed var(--border)' }}>
@@ -655,8 +655,8 @@ export function Orders() {
                                 </div>
                               </div>
                             )}
-                            
-                        {!activeItem?.customDesign?.frontDesign?.previewImage && activeItem?.customDesign?.backDesign?.previewImage && (
+
+                            {!activeItem?.customDesign?.frontDesign?.previewImage && activeItem?.customDesign?.backDesign?.previewImage && (
                               <div className="design-preview-item">
                                 <div className="design-preview-label">Front Design</div>
                                 <div className="design-preview-container" style={{ background: 'var(--panel)', border: '2px dashed var(--border)' }}>
@@ -668,8 +668,8 @@ export function Orders() {
                             )}
                           </>
                         )}
-                          </div>
-                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -1113,9 +1113,9 @@ export function Orders() {
         <div className="modal-overlay" onClick={closeImageZoom} style={{ zIndex: 2000 }}>
           <div className="image-zoom-modal" onClick={(e) => e.stopPropagation()}>
             <button className="close-btn" onClick={closeImageZoom} style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 2001 }}>×</button>
-            <img 
-              src={zoomedImage} 
-              alt="Zoomed Design" 
+            <img
+              src={zoomedImage}
+              alt="Zoomed Design"
               className="zoomed-image"
             />
           </div>

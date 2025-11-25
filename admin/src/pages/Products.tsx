@@ -3,7 +3,7 @@ import api from '@/lib/api'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
 
-type Product = { 
+type Product = {
   _id: string
   name: string
   slug: string
@@ -167,11 +167,11 @@ export function Products() {
     e.preventDefault()
     try {
       setSaving(true)
-      
+
       if (editingProduct) {
         await api.updateProduct(editingProduct._id, formData)
-        setProducts(products.map(p => 
-          p._id === editingProduct._id 
+        setProducts(products.map(p =>
+          p._id === editingProduct._id
             ? { ...p, ...formData }
             : p
         ))
@@ -179,7 +179,7 @@ export function Products() {
         const res = await api.createProduct(formData)
         setProducts([res.data, ...products])
       }
-      
+
       setShowForm(false)
       setEditingProduct(null)
     } catch (e: any) {
@@ -227,9 +227,9 @@ export function Products() {
 
       const updatedVariants = product.variants.filter((_, index) => index !== variantIndex)
       await api.updateProduct(productId, { variants: updatedVariants })
-      
-      setProducts(products.map(p => 
-        p._id === productId 
+
+      setProducts(products.map(p =>
+        p._id === productId
           ? { ...p, variants: updatedVariants }
           : p
       ))
@@ -241,7 +241,7 @@ export function Products() {
   const handleVariantSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Variant submit called, editingVariant:', editingVariant)
-    
+
     // Determine product ID - either from editingVariant or from the current context
     let productId: string
     if (editingVariant?.productId) {
@@ -261,31 +261,31 @@ export function Products() {
 
       // Create FormData for file upload
       const formData = new FormData()
-      
+
       // Add variant data
       const variantData = {
         color: variantFormData.color,
         colorCode: variantFormData.colorCode,
         images: [] // Will be populated after upload
       }
-      
+
       // Add front images with proper naming
       variantImages.front.forEach((file, index) => {
         formData.append(`images_${variantFormData.color}_front_${index}`, file)
       })
-      
+
       // Add back images with proper naming
       variantImages.back.forEach((file, index) => {
         formData.append(`images_${variantFormData.color}_back_${index}`, file)
       })
-      
+
       // Add variants data as JSON string
       formData.append('variants', JSON.stringify([variantData]))
 
       // Call API with FormData
       console.log('Making API call to:', `${API_BASE}/products/${productId}`)
       console.log('FormData contents:', Array.from(formData.entries()))
-      
+
       const response = await fetch(`${API_BASE}/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -293,7 +293,7 @@ export function Products() {
         },
         body: formData
       })
-      
+
       console.log('API response status:', response.status)
 
       if (!response.ok) {
@@ -302,19 +302,19 @@ export function Products() {
       }
 
       const result = await response.json()
-      
+
       // Update local state with the response
-      setProducts(products.map(p => 
-        p._id === productId 
+      setProducts(products.map(p =>
+        p._id === productId
           ? result.data
           : p
       ))
-      
+
       setShowVariantForm(false)
       setEditingVariant(null)
       setVariantImages({ front: [], back: [] })
       setDragOver({ front: false, back: false })
-      
+
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -344,11 +344,11 @@ export function Products() {
   const handleDrop = (e: React.DragEvent, type: 'front' | 'back') => {
     e.preventDefault()
     setDragOver(prev => ({ ...prev, [type]: false }))
-    
-    const files = Array.from(e.dataTransfer.files).filter(file => 
+
+    const files = Array.from(e.dataTransfer.files).filter(file =>
       file.type.startsWith('image/')
     )
-    
+
     if (files.length > 0) {
       setVariantImages(prev => ({
         ...prev,
@@ -394,14 +394,14 @@ export function Products() {
   return (
     <section>
       <div className="section-header">
-      <h2>Products</h2>
+        <h2>Products</h2>
         <button className="primary" onClick={handleCreate}>
           Add Product
         </button>
       </div>
-      
+
       {error && <div className="error">{error}</div>}
-      
+
       {showForm && (
         <div className="modal-overlay">
           <div className="modal">
@@ -409,7 +409,7 @@ export function Products() {
               <h3>{editingProduct ? 'Edit Product' : 'Add Product'}</h3>
               <button className="close-btn" onClick={handleCancel}>×</button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="product-form">
               <div className="form-row">
                 <label>
@@ -417,72 +417,72 @@ export function Products() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </label>
-                
+
                 <label>
                   Slug *
                   <input
                     type="text"
                     value={formData.slug}
-                    onChange={(e) => setFormData({...formData, slug: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                     required
                   />
                 </label>
               </div>
-              
+
               <label>
                 Description
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
                 />
               </label>
-              
+
               <div className="form-row">
                 <label>
                   Price ($) *
                   <input
                     type="number"
                     value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
+                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                     required
                     min="0"
                     step="0.01"
                   />
                 </label>
-                
+
                 <label>
                   Stock *
                   <input
                     type="number"
                     value={formData.stock}
-                    onChange={(e) => setFormData({...formData, stock: Number(e.target.value)})}
+                    onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
                     required
                     min="0"
                   />
                 </label>
               </div>
-              
+
               <div className="form-row">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
                     checked={formData.customizable}
-                    onChange={(e) => setFormData({...formData, customizable: e.target.checked})}
+                    onChange={(e) => setFormData({ ...formData, customizable: e.target.checked })}
                   />
                   Customizable
                 </label>
-                
+
                 {formData.customizable && (
                   <label>
                     Customization Type
                     <select
                       value={formData.customizationType}
-                      onChange={(e) => setFormData({...formData, customizationType: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, customizationType: e.target.value })}
                     >
                       <option value="predefined">Predefined Only</option>
                       <option value="own">User Own Design</option>
@@ -491,20 +491,25 @@ export function Products() {
                   </label>
                 )}
               </div>
-              
+
               <div className="form-actions">
                 <button type="button" onClick={handleCancel} className="secondary">
                   Cancel
                 </button>
                 <button type="submit" className="primary" disabled={saving}>
-                  {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Create')}
+                  {saving ? (
+                    <>
+                      <span className="loading-spinner" />
+                      Saving...
+                    </>
+                  ) : (editingProduct ? 'Update' : 'Create')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      
+
       {products.length === 0 ? (
         <div className="empty-state">
           <p>No products found</p>
@@ -519,65 +524,65 @@ export function Products() {
               <div className="product-header">
                 <h3 className="product-name">{product.name}</h3>
                 <div className="product-actions">
-                  <button 
-                    className="edit-btn" 
+                  <button
+                    className="edit-btn"
                     onClick={() => handleEdit(product)}
                     title="Edit"
                   >
                     ✏️
                   </button>
-                  <button 
-                    className="delete-btn" 
+                  <button
+                    className="delete-btn"
                     onClick={() => handleDelete(product._id)}
                     disabled={deleting === product._id}
                     title="Delete"
                   >
-                    {deleting === product._id ? '⏳' : '🗑️'}
+                    {deleting === product._id ? <span className="loading-spinner" /> : '🗑️'}
                   </button>
                 </div>
               </div>
-              
+
               <div className="product-details">
                 <div className="detail-row">
                   <span className="label">Slug:</span>
                   <span className="value">{product.slug}</span>
                 </div>
-                
+
                 <div className="detail-row">
                   <span className="label">Price:</span>
                   <span className="value">${product.price.toFixed(2)}</span>
                 </div>
-                
+
                 <div className="detail-row">
                   <span className="label">Stock:</span>
                   <span className="value">{product.stock}</span>
                 </div>
-                
+
                 <div className="detail-row">
                   <span className="label">Customizable:</span>
                   <span className="value">{product.customizable ? 'Yes' : 'No'}</span>
                 </div>
-                
+
                 {product.customizable && (
                   <div className="detail-row">
                     <span className="label">Type:</span>
                     <span className="value">{product.customizationType}</span>
                   </div>
                 )}
-                
+
                 <div className="detail-row">
                   <span className="label">Variants:</span>
                   <div className="variant-info">
                     <span className="value">{product.variants?.length || 0} colors</span>
-                    <button 
-                      className="variants-btn" 
+                    <button
+                      className="variants-btn"
                       onClick={() => handleShowVariants(product._id)}
                     >
                       {showVariants === product._id ? 'Hide' : 'Manage'} Variants
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="detail-row">
                   <span className="label">Created:</span>
                   <span className="value">{formatDate(product.createdAt)}</span>
@@ -609,27 +614,27 @@ export function Products() {
                   </div>
                 )}
               </div>
-              
+
               {/* Variants Section */}
               {showVariants === product._id && (
                 <div className="variants-section">
                   <div className="variants-header">
                     <h4>Product Variants</h4>
-                    <button 
-                      className="add-variant-btn" 
+                    <button
+                      className="add-variant-btn"
                       onClick={() => handleAddVariant(product._id)}
                     >
                       + Add Variant
                     </button>
                   </div>
-                  
+
                   {product.variants && product.variants.length > 0 ? (
                     <div className="variants-list">
                       {product.variants.map((variant, index) => (
                         <div key={index} className="variant-item">
                           <div className="variant-preview">
-                            <div 
-                              className="color-swatch" 
+                            <div
+                              className="color-swatch"
                               style={{ backgroundColor: variant.colorCode }}
                             />
                             <div className="variant-details">
@@ -646,13 +651,13 @@ export function Products() {
                             </div>
                           </div>
                           <div className="variant-actions">
-                            <button 
+                            <button
                               className="edit-variant-btn"
                               onClick={() => handleEditVariant(product._id, index, variant)}
                             >
                               ✏️
                             </button>
-                            <button 
+                            <button
                               className="delete-variant-btn"
                               onClick={() => handleDeleteVariant(product._id, index)}
                             >
@@ -665,8 +670,8 @@ export function Products() {
                   ) : (
                     <div className="no-variants">
                       <p>No variants added yet</p>
-                      <button 
-                        className="add-variant-btn" 
+                      <button
+                        className="add-variant-btn"
                         onClick={() => handleAddVariant(product._id)}
                       >
                         + Add First Variant
@@ -679,7 +684,7 @@ export function Products() {
           ))}
         </div>
       )}
-      
+
       {/* Variant Form Modal */}
       {showVariantForm && (
         <div className="modal-overlay">
@@ -688,7 +693,7 @@ export function Products() {
               <h3>{editingVariant && editingVariant.variantIndex >= 0 ? 'Edit Variant' : 'Add Variant'}</h3>
               <button className="close-btn" onClick={handleVariantCancel}>×</button>
             </div>
-            
+
             <form onSubmit={handleVariantSubmit} className="variant-form">
               <div className="form-row">
                 <label>
@@ -696,30 +701,30 @@ export function Products() {
                   <input
                     type="text"
                     value={variantFormData.color}
-                    onChange={(e) => setVariantFormData({...variantFormData, color: e.target.value})}
+                    onChange={(e) => setVariantFormData({ ...variantFormData, color: e.target.value })}
                     required
                     placeholder="e.g., Red, Blue, Black"
                   />
                 </label>
-                
+
                 <label>
                   Color Code *
                   <input
                     type="color"
                     value={variantFormData.colorCode}
-                    onChange={(e) => setVariantFormData({...variantFormData, colorCode: e.target.value})}
+                    onChange={(e) => setVariantFormData({ ...variantFormData, colorCode: e.target.value })}
                     required
                   />
                 </label>
               </div>
-              
+
               <div className="image-upload-section">
                 <h4>Product Images</h4>
-                
+
                 {/* Front Images */}
                 <div className="image-upload-area">
                   <label className="image-upload-label">Front Images</label>
-                  <div 
+                  <div
                     className={`drag-drop-area ${dragOver.front ? 'drag-over' : ''}`}
                     onDragOver={(e) => handleDragOver(e, 'front')}
                     onDragLeave={(e) => handleDragLeave(e, 'front')}
@@ -738,19 +743,19 @@ export function Products() {
                       />
                     </div>
                   </div>
-                  
+
                   {variantImages.front.length > 0 && (
                     <div className="selected-images">
                       <h5>Selected Front Images:</h5>
                       <div className="image-preview-grid">
                         {variantImages.front.map((file, index) => (
                           <div key={index} className="image-preview-item">
-                            <img 
-                              src={URL.createObjectURL(file)} 
+                            <img
+                              src={URL.createObjectURL(file)}
                               alt={`Front ${index + 1}`}
                               className="preview-thumbnail"
                             />
-                            <button 
+                            <button
                               className="remove-image-btn"
                               onClick={() => removeImage('front', index)}
                             >
@@ -767,7 +772,7 @@ export function Products() {
                 {/* Back Images */}
                 <div className="image-upload-area">
                   <label className="image-upload-label">Back Images</label>
-                  <div 
+                  <div
                     className={`drag-drop-area ${dragOver.back ? 'drag-over' : ''}`}
                     onDragOver={(e) => handleDragOver(e, 'back')}
                     onDragLeave={(e) => handleDragLeave(e, 'back')}
@@ -786,19 +791,19 @@ export function Products() {
                       />
                     </div>
                   </div>
-                  
+
                   {variantImages.back.length > 0 && (
                     <div className="selected-images">
                       <h5>Selected Back Images:</h5>
                       <div className="image-preview-grid">
                         {variantImages.back.map((file, index) => (
                           <div key={index} className="image-preview-item">
-                            <img 
-                              src={URL.createObjectURL(file)} 
+                            <img
+                              src={URL.createObjectURL(file)}
                               alt={`Back ${index + 1}`}
                               className="preview-thumbnail"
                             />
-                            <button 
+                            <button
                               className="remove-image-btn"
                               onClick={() => removeImage('back', index)}
                             >
@@ -812,7 +817,7 @@ export function Products() {
                   )}
                 </div>
               </div>
-              
+
               <div className="form-actions">
                 <button type="button" onClick={handleVariantCancel} className="secondary">
                   Cancel
@@ -820,7 +825,7 @@ export function Products() {
                 <button type="submit" className="primary" disabled={uploadingImages}>
                   {uploadingImages ? (
                     <>
-                      <div className="loading-spinner"></div>
+                      <span className="loading-spinner" />
                       Uploading Images...
                     </>
                   ) : (
