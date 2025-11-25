@@ -9,7 +9,7 @@ import { CasualProducts } from './pages/CasualProducts'
 import { Orders } from './pages/Orders'
 import { Users } from './pages/Users'
 import { Settings } from './pages/Settings'
-import { Designs } from './pages/Designs'
+
 import { HomeSettings } from './pages/HomeSettings'
 import { Coupons } from './pages/Coupons'
 import { Templates } from './pages/Templates'
@@ -36,7 +36,7 @@ export default function App() {
           <Route path="dtf-products" element={<DTFProducts />} />
           <Route path="orders" element={<Orders />} />
           <Route path="users" element={<Users />} />
-          <Route path="designs" element={<Designs />} />
+
           <Route path="coupons" element={<Coupons />} />
           <Route path="templates" element={<Templates />} />
           <Route path="home" element={<HomeSettings />} />

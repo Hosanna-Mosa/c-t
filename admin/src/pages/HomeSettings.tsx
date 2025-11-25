@@ -82,41 +82,45 @@ export function HomeSettings() {
       <h2>Home Settings</h2>
       {error && <div className="error">{error}</div>}
       {toast && <div className="card" style={{ borderColor: '#28a745' }}><strong>Success:</strong> <span>{toast}</span></div>}
-      <form onSubmit={handleSubmit} className="form">
-        <div className="card" style={{ padding: 16 }}>
-          <label>Background image in Home page</label>
-          <input type="file" accept="image/*" onChange={(e) => setHomeBackground(e.target.files?.[0] || null)} />
-          {current?.homeBackground?.url && (
-            <img src={current.homeBackground.url} alt="home bg" style={{ width: '100%', maxWidth: 420, height: 'auto', borderRadius: 10, marginTop: 10 }} />
-          )}
+      <form onSubmit={handleSubmit} className="form" style={{ maxWidth: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+          <div className="card" style={{ padding: 16 }}>
+            <label>Background image in Home page</label>
+            <input type="file" accept="image/*" onChange={(e) => setHomeBackground(e.target.files?.[0] || null)} />
+            {current?.homeBackground?.url && (
+              <img src={current.homeBackground.url} alt="home bg" style={{ width: '100%', height: 'auto', borderRadius: 10, marginTop: 10, objectFit: 'cover', maxHeight: 300 }} />
+            )}
+          </div>
+          <div className="card" style={{ padding: 16 }}>
+            <label>Poster in Home page</label>
+            <input type="file" accept="image/*" onChange={(e) => setHomePoster(e.target.files?.[0] || null)} />
+            {current?.homePoster?.url && (
+              <img src={current.homePoster.url} alt="poster" style={{ width: '100%', height: 'auto', borderRadius: 10, marginTop: 10, objectFit: 'cover', maxHeight: 300 }} />
+            )}
+          </div>
+          <div className="card" style={{ padding: 16, gridColumn: '1 / -1' }}>
+            <label htmlFor="news-content" style={{ fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              News Ticker Content
+            </label>
+            <textarea
+              id="news-content"
+              value={newsContent}
+              onChange={(e) => setNewsContent(e.target.value)}
+              placeholder="Add a short announcement that will scroll on the storefront"
+              rows={3}
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
+              Tip: Keep it brief (one sentence). Leave blank to hide the news strip.
+            </p>
+          </div>
         </div>
-        <div className="card" style={{ padding: 16 }}>
-          <label>Poster in Home page</label>
-          <input type="file" accept="image/*" onChange={(e) => setHomePoster(e.target.files?.[0] || null)} />
-          {current?.homePoster?.url && (
-            <img src={current.homePoster.url} alt="poster" style={{ width: '100%', maxWidth: 420, height: 'auto', borderRadius: 10, marginTop: 10 }} />
-          )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="primary" type="submit" disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {saving && <span className="spinner" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />}
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
-          <label htmlFor="news-content" style={{ fontWeight: 600, display: 'block', marginBottom: 8 }}>
-            News Ticker Content
-          </label>
-          <textarea
-            id="news-content"
-            value={newsContent}
-            onChange={(e) => setNewsContent(e.target.value)}
-            placeholder="Add a short announcement that will scroll on the storefront"
-            rows={3}
-            style={{ width: '100%', resize: 'vertical' }}
-          />
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
-            Tip: Keep it brief (one sentence). Leave blank to hide the news strip.
-          </p>
-        </div>
-        <button className="primary" type="submit" disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          {saving && <span className="spinner" style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />}
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
       </form>
     </section>
   );

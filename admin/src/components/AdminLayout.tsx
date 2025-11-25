@@ -14,7 +14,7 @@ export function AdminLayout() {
           <NavLink to="/dtf-products">DTF Products</NavLink>
           <NavLink to="/orders">Orders</NavLink>
           <NavLink to="/users">Users</NavLink>
-          <NavLink to="/designs">Designs</NavLink>
+
           <NavLink to="/coupons">Coupons</NavLink>
           <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/home">Home</NavLink>
