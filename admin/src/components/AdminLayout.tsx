@@ -18,7 +18,7 @@ export function AdminLayout() {
           <NavLink to="/coupons">Coupons</NavLink>
           <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/home">Home</NavLink>
-          <NavLink to="/settings">Settings</NavLink>
+          {/* <NavLink to="/settings">Settings</NavLink> */}
         </nav>
         <button className="logout" onClick={logout}>Logout</button>
       </aside>
