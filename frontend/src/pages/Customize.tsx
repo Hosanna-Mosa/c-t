@@ -16,6 +16,7 @@ import {
   Download,
   ShoppingCart,
   ShoppingBag,
+  Palette,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -247,8 +248,9 @@ export default function Customize() {
   const [orderInstruction, setOrderInstruction] = useState("");
   const templateImageCache = useRef<Record<string, string>>({});
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [activeMobileTab, setActiveMobileTab] = useState<"product" | "text" | "image" | "reset" | "download" | null>(null);
+  const [activeMobileTab, setActiveMobileTab] = useState<"product" | "text" | "image" | "art" | "reset" | "download" | null>(null);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [hasActiveObject, setHasActiveObject] = useState(false);
 
   // Canvas state
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1054,6 +1056,8 @@ export default function Customize() {
       if (activeObject) {
         const obj = activeObject as any;
         const objSizeId = obj.designSizeId || selectedDesignSize;
+        const isCustomObject = obj.name === "custom-text" || obj.name === "custom-image";
+        setHasActiveObject(Boolean(isCustomObject));
         
         // Update size selector to match selected object's size
         if (objSizeId && STANDARD_DESIGN_SIZES.find(s => s.id === objSizeId)) {
@@ -1072,6 +1076,7 @@ export default function Customize() {
       } else {
         // Clear text input when no object is selected
         setTextInput("");
+        setHasActiveObject(false);
       }
     };
 
@@ -1079,6 +1084,7 @@ export default function Customize() {
     fabricCanvas.on("selection:updated", handleObjectSelection);
     fabricCanvas.on("selection:cleared", () => {
       setTextInput("");
+      setHasActiveObject(false);
     });
 
     return () => {
@@ -2761,6 +2767,18 @@ export default function Customize() {
             </div>
           </div>
 
+          {hasActiveObject && (
+            <Button
+              size="icon"
+              variant="destructive"
+              className="lg:hidden fixed bottom-32 right-4 z-40 h-10 w-10 rounded-full shadow-xl"
+              onClick={handleDeleteSelected}
+              aria-label="Delete selected element"
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          )}
+
           {/* Desktop: Right Sidebar - Customization Tools */}
           <Card className="h-fit order-2 lg:order-3 hidden lg:block">
             <CardContent className="p-3 sm:p-4">
@@ -3081,6 +3099,55 @@ export default function Customize() {
                   </div>
                 )}
 
+                {/* Art/Templates Section */}
+                {activeMobileTab === "art" && (
+                  <div className="mb-4 pb-4 border-b">
+                    <Label className="mb-2 block text-sm font-semibold">Art & Templates</Label>
+                    <div className="max-h-64 overflow-y-auto">
+                      {templatesLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      ) : templatesError ? (
+                        <p className="text-sm text-destructive">{templatesError}</p>
+                      ) : templates.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No templates found.</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {templates.map((template) => {
+                            const isActive = templateInfo?.id === template._id;
+                            return (
+                              <button
+                                key={template._id}
+                                type="button"
+                                onClick={() => {
+                                  handleTemplateSelect(template);
+                                  setMobileDrawerOpen(false);
+                                  setActiveMobileTab(null);
+                                }}
+                                className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-md border transition-all ${
+                                  isActive ? "border-primary ring-2 ring-primary/40" : "border-border"
+                                }`}
+                              >
+                                <img
+                                  src={template.image?.url}
+                                  alt={template.name || "Template"}
+                                  className="h-full w-full object-cover"
+                                />
+                                {isActive && (
+                                  <span className="absolute bottom-1 left-1 right-1 rounded bg-primary/80 px-1 text-[10px] font-medium text-white">
+                                    Selected
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Reset Section */}
                 {activeMobileTab === "reset" && (
                   <div className="space-y-4">
@@ -3251,6 +3318,18 @@ export default function Customize() {
               >
                 <Upload className="h-5 w-5" />
                 <span className="text-[10px]">Image</span>
+              </Button>
+              <Button
+                variant={activeMobileTab === "art" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "art" ? null : "art");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <Palette className="h-5 w-5" />
+                <span className="text-[10px]">Art</span>
               </Button>
               <Button
                 variant={activeMobileTab === "reset" ? "default" : "ghost"}
