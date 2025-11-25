@@ -15,6 +15,7 @@ import {
   Trash2,
   Download,
   ShoppingCart,
+  ShoppingBag,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -32,6 +33,8 @@ import { Command, CommandEmpty, CommandInput, CommandList } from "@/components/u
 import { Loader2, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // Types
 type Step = "category" | "product" | "design";
@@ -243,6 +246,9 @@ export default function Customize() {
   const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
   const [orderInstruction, setOrderInstruction] = useState("");
   const templateImageCache = useRef<Record<string, string>>({});
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<"product" | "text" | "image" | "reset" | "download" | null>(null);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
 
   // Canvas state
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -2508,8 +2514,10 @@ export default function Customize() {
               transition={{ duration: 0 }}
             >
         <div className="flex flex-col lg:grid lg:grid-cols-[minmax(280px,400px)_1fr_minmax(280px,300px)] gap-2 sm:gap-3 lg:gap-4">
-          {/* Left Sidebar - Product Options */}
-          <Card className="h-fit order-1 lg:order-1">
+
+
+          {/* Desktop: Left Sidebar - Product Options */}
+          <Card className="h-fit order-1 lg:order-1 hidden lg:block">
             <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
               <div>
                       <Label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold">Design Side</Label>
@@ -2664,8 +2672,33 @@ export default function Customize() {
             </CardContent>
           </Card>
 
+          {/* Mobile: Design Side Selector */}
+          <div className="lg:hidden order-3 w-full px-4 mb-3">
+            <div className="flex items-center justify-between bg-muted/60 border rounded-lg px-3 py-2">
+              <Label className="text-xs font-semibold text-muted-foreground">Design Side</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={designSide === "front" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDesignSide("front")}
+                  className="h-8 px-4 text-xs"
+                >
+                  Front
+                </Button>
+                <Button
+                  variant={designSide === "back" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDesignSide("back")}
+                  className="h-8 px-4 text-xs"
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {/* Center - Canvas */}
-          <div className="flex flex-col items-center gap-3 sm:gap-4 order-3 lg:order-2 w-full overflow-hidden">
+          <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 order-4 lg:order-2 w-full overflow-hidden pb-36 lg:pb-0 min-h-[60vh] lg:min-h-0">
             <div className="rounded-lg border-2 p-2 sm:p-4 shadow-lg bg-muted/30 w-full max-w-full overflow-hidden flex items-center justify-center" style={{ maxWidth: '100%', width: '100%' }}>
                     <div className="w-full max-w-full flex items-center justify-center" style={{ maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
                       <canvas 
@@ -2689,7 +2722,7 @@ export default function Customize() {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 justify-center w-full px-2">
+            <div className="hidden sm:flex flex-wrap gap-2 justify-center w-full px-2">
               <Button variant="outline" size="sm" onClick={handleDeleteSelected} className="text-xs sm:text-sm">
                 <Trash2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="hidden sm:inline">Delete</span>
@@ -2728,8 +2761,33 @@ export default function Customize() {
             </div>
           </div>
 
-          {/* Right Sidebar - Customization Tools */}
-          <Card className="h-fit order-2 lg:order-3">
+          {/* Mobile: Design Size Selector - Between Canvas and Bottom Tabs */}
+          <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-background border-t px-4 py-3">
+            <Label className="mb-2 block text-xs font-semibold">Design Size</Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {STANDARD_DESIGN_SIZES.map((size) => (
+                <Button
+                  key={size.id}
+                  variant={selectedDesignSize === size.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedDesignSize(size.id);
+                    if (fabricCanvas?.getActiveObject()) {
+                      handleChangeObjectSize(size.id);
+                    }
+                  }}
+                  className="flex flex-col h-auto py-1.5 text-[9px]"
+                >
+                  <span className="text-[9px] font-medium leading-tight">{size.name}</span>
+                  <span className="text-[8px] text-muted-foreground leading-tight">{size.description}</span>
+                  <span className="text-[9px] font-semibold text-primary mt-0.5">${size.price}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop: Right Sidebar - Customization Tools */}
+          <Card className="h-fit order-2 lg:order-3 hidden lg:block">
             <CardContent className="p-3 sm:p-4">
               {/* Design Size Selector */}
               <div className="mb-2 sm:mb-3 pb-2 sm:pb-3 border-b">
@@ -2917,6 +2975,334 @@ export default function Customize() {
 
             </CardContent>
           </Card>
+
+          {/* Mobile: Bottom Drawer for Customization Tools */}
+          <Drawer open={mobileDrawerOpen} onOpenChange={(open) => {
+            setMobileDrawerOpen(open);
+            if (!open) {
+              // Reset active tab when drawer closes
+              setActiveMobileTab(null);
+            }
+          }}>
+            <DrawerContent className="max-h-[85vh]">
+              <DrawerHeader>
+                <DrawerTitle>Customize Your Design</DrawerTitle>
+              </DrawerHeader>
+              <div className="overflow-y-auto px-4 pb-4">
+                {/* Product Options Section */}
+                {activeMobileTab === "product" && (
+                  <div className="space-y-4">
+                    {/* Design Side Selector */}
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Design Side</Label>
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <Button
+                          variant={designSide === "front" ? "default" : "outline"}
+                          onClick={() => setDesignSide("front")}
+                          className="w-full h-10 text-sm"
+                        >
+                          Front
+                        </Button>
+                        <Button
+                          variant={designSide === "back" ? "default" : "outline"}
+                          onClick={() => setDesignSide("back")}
+                          className="w-full h-10 text-sm"
+                        >
+                          Back
+                        </Button>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Front: {frontDesignLayers.length} elements | Back: {backDesignLayers.length} elements
+                      </div>
+                    </div>
+
+                    {/* Size Selector */}
+                    <div className="border-t pt-4">
+                      <Label className="mb-2 block text-sm font-semibold">Size</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {SIZES.map((size) => (
+                          <Button
+                            key={size}
+                            variant={selectedSize === size ? "default" : "outline"}
+                            onClick={() => setSelectedSize(size)}
+                            className="w-full h-9 text-sm"
+                          >
+                            {size}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color Selector */}
+                    {selectedProduct && selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                      <div className="border-t pt-4">
+                        <Label className="mb-2 block text-sm font-semibold">Product Color</Label>
+                        <div className="grid grid-cols-6 gap-2">
+                          {selectedProduct.variants.map((variant) => (
+                            <button
+                              key={variant.color}
+                              onClick={() => setSelectedColor(variant.color)}
+                              className={`w-full aspect-square rounded-full border-2 transition-all ${
+                                selectedColor === variant.color 
+                                  ? 'border-primary ring-2 ring-primary/20 scale-110' 
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                              style={{ backgroundColor: variant.colorCode }}
+                              title={variant.color}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pricing */}
+                    <div className="border-t pt-4">
+                      <Label className="mb-3 block text-sm font-semibold">Pricing</Label>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Base Price:</span>
+                          <span className="font-medium">${basePrice.toFixed(2)}</span>
+                        </div>
+                        {frontCustomizationCost > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Front Design:</span>
+                            <span className="font-medium">${frontCustomizationCost.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {backCustomizationCost > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Back Design:</span>
+                            <span className="font-medium">${backCustomizationCost.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t pt-2 text-lg font-bold">
+                          <span>Total:</span>
+                          <span className="text-primary">${totalPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Add to Cart */}
+                    <Button 
+                      onClick={() => {
+                        setMobileDrawerOpen(false);
+                        if (!fabricCanvas || !selectedProduct || !selectedColor) {
+                          toast.error("Please complete all steps before adding to cart");
+                          return;
+                        }
+                        const token = localStorage.getItem('token');
+                        if (!token) {
+                          toast.error("Please login to add items to cart");
+                          return;
+                        }
+                        setInstructionDialogOpen(true);
+                      }}
+                      className="w-full gradient-hero shadow-primary h-11 text-sm font-semibold"
+                      disabled={addingToCart}
+                    >
+                      <ShoppingCart className="mr-2 h-4 w-4" />
+                      Add to Cart
+                    </Button>
+                  </div>
+                )}
+
+                {/* Reset Section */}
+                {activeMobileTab === "reset" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Reset Design</Label>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        This will remove all design elements from the current side ({designSide}). This action cannot be undone.
+                      </p>
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                          handleReset();
+                          setMobileDrawerOpen(false);
+                        }}
+                        className="w-full"
+                      >
+                        Reset {designSide === "front" ? "Front" : "Back"} Design
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Download Section */}
+                {activeMobileTab === "download" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Download Design</Label>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Download your design as a PDF file with both front and back designs.
+                      </p>
+                      <Button 
+                        onClick={() => {
+                          handleDownload();
+                          setMobileDrawerOpen(false);
+                        }}
+                        className="w-full"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Design PDF
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Text Customization */}
+                {activeMobileTab === "text" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Your Text</Label>
+                      <Input
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        placeholder="Type here..."
+                        className="mb-2"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleAddText();
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Text Color & Font</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowColorPicker(!showColorPicker)}
+                            className="h-10 w-10 rounded-full border-2 border-border shadow-sm"
+                            style={{ backgroundColor: textColor }}
+                            title="Text Color"
+                          />
+                          {showColorPicker && (
+                            <div className="absolute top-full left-0 mt-2 rounded-lg border p-3 bg-background z-50 shadow-lg">
+                              <HexColorPicker color={textColor} onChange={setTextColor} style={{ width: '200px' }} />
+                            </div>
+                          )}
+                        </div>
+                        <select
+                          value={selectedFont}
+                          onChange={(e) => setSelectedFont(e.target.value)}
+                          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm h-10"
+                        >
+                          {FONTS.map((font) => (
+                            <option key={font} value={font}>
+                              {font}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <Button onClick={handleAddText} className="w-full">
+                      <Type className="mr-2 h-4 w-4" />
+                      {fabricCanvas?.getActiveObject() && (fabricCanvas.getActiveObject() as any).name === "custom-text" ? "Update Text" : "Add Text"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Image Upload */}
+                {activeMobileTab === "image" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block text-sm font-semibold">Upload Image</Label>
+                      <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                        <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                        <p className="mb-2 text-sm text-muted-foreground">
+                          Click to upload your logo or design
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="mobile-image-upload"
+                        />
+                        <label htmlFor="mobile-image-upload">
+                          <Button variant="outline" size="sm" asChild>
+                            <span>Choose File</span>
+                          </Button>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
+                      <p className="font-medium text-blue-800">💡 Pro Tip:</p>
+                      <p className="mt-1 text-blue-700">PNG images give you the best results with transparent backgrounds and high quality.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DrawerContent>
+          </Drawer>
+
+          {/* Mobile: Bottom Navigation Tabs */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg">
+            <div className="flex items-center justify-around h-16 px-1">
+              <Button
+                variant={activeMobileTab === "product" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "product" ? null : "product");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                <span className="text-[10px]">Product</span>
+              </Button>
+              <Button
+                variant={activeMobileTab === "text" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "text" ? null : "text");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <Type className="h-5 w-5" />
+                <span className="text-[10px]">Text</span>
+              </Button>
+              <Button
+                variant={activeMobileTab === "image" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "image" ? null : "image");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <Upload className="h-5 w-5" />
+                <span className="text-[10px]">Image</span>
+              </Button>
+              <Button
+                variant={activeMobileTab === "reset" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "reset" ? null : "reset");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <RefreshCw className="h-5 w-5" />
+                <span className="text-[10px]">Reset</span>
+              </Button>
+              <Button
+                variant={activeMobileTab === "download" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setMobileDrawerOpen(true);
+                  setActiveMobileTab(activeMobileTab === "download" ? null : "download");
+                }}
+                className="flex flex-col items-center gap-1 h-auto py-2 flex-1 min-w-0"
+              >
+                <Download className="h-5 w-5" />
+                <span className="text-[10px]">Download</span>
+              </Button>
+            </div>
+          </div>
         </div>
             </motion.div>
           )}
