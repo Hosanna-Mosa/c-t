@@ -2640,33 +2640,8 @@ export default function Customize() {
             </CardContent>
           </Card>
 
-          {/* Mobile: Design Side Selector */}
-          <div className="lg:hidden order-3 w-full px-4 mb-3">
-            <div className="flex items-center justify-between bg-muted/60 border rounded-lg px-3 py-2">
-              <Label className="text-xs font-semibold text-muted-foreground">Design Side</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={designSide === "front" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDesignSide("front")}
-                  className="h-8 px-4 text-xs"
-                >
-                  Front
-                </Button>
-                <Button
-                  variant={designSide === "back" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDesignSide("back")}
-                  className="h-8 px-4 text-xs"
-                >
-                  Back
-                </Button>
-              </div>
-            </div>
-          </div>
-
           {/* Center - Canvas */}
-          <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 order-4 lg:order-2 w-full overflow-hidden pb-36 lg:pb-0 min-h-[60vh] lg:min-h-0">
+          <div className="flex flex-col items-center justify-center gap-3 sm:gap-4 order-3 lg:order-2 w-full overflow-hidden pb-36 lg:pb-0 min-h-[60vh] lg:min-h-0">
             <div className="rounded-lg border-2 p-2 sm:p-4 shadow-lg bg-muted/30 w-full max-w-full overflow-hidden flex items-center justify-center" style={{ maxWidth: '100%', width: '100%' }}>
                     <div className="w-full max-w-full flex items-center justify-center" style={{ maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
                       <canvas 
@@ -3285,7 +3260,7 @@ export default function Customize() {
         )} */}
       </div>
 
-      <Footer />
+      {/* <Footer /> */}
 
       <Dialog
         open={instructionDialogOpen}
