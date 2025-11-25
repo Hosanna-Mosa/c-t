@@ -166,8 +166,7 @@ function getImageDPIFromMeta(imgObject: any): number {
       }
     }
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("Could not extract DPI from image metadata, falling back to default 300 DPI");
+
   }
   return 300; // fallback
 }
@@ -330,7 +329,18 @@ export default function Customize() {
           } catch {}
         }
         if (d.frontDesign?.designLayers) setFrontDesignLayers(d.frontDesign.designLayers);
+        if (d.frontDesign?.metrics) {
+          setFrontDesignMetrics(d.frontDesign.metrics);
+          const maxCost = d.frontDesign.metrics.perLayer?.reduce((max: number, l: any) => Math.max(max, l.cost || 0), 0) || 0;
+          setFrontCustomizationCost(maxCost);
+        }
+
         if (d.backDesign?.designLayers) setBackDesignLayers(d.backDesign.designLayers);
+        if (d.backDesign?.metrics) {
+          setBackDesignMetrics(d.backDesign.metrics);
+          const maxCost = d.backDesign.metrics.perLayer?.reduce((max: number, l: any) => Math.max(max, l.cost || 0), 0) || 0;
+          setBackCustomizationCost(maxCost);
+        }
         setStep("design");
         toast.success("Loaded saved design");
       } catch (e) {
@@ -519,12 +529,10 @@ export default function Customize() {
       const variant = selectedProduct.variants.find((v) => v.color === selectedColor);
       const imgUrl = variant ? pickVariantImageForSide(variant, designSide) : undefined;
       if (imgUrl) {
-        // eslint-disable-next-line no-console
-        console.log("[Customize] Loading base image for", designSide, ":", imgUrl);
+
         addProductPhotoBase(canvas, imgUrl);
       } else {
-        // eslint-disable-next-line no-console
-        console.warn("[Customize] No image found for", designSide, "side");
+
       }
     }
 
@@ -632,8 +640,7 @@ export default function Customize() {
 
   // Focused logging for front/back switching
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("[Customize] Side changed to:", designSide);
+
   }, [designSide]);
 
   // Initialize canvas only when in design step (layout effect for earlier timing)
@@ -661,8 +668,7 @@ export default function Customize() {
   useEffect(() => {
     if (!fabricCanvas || step !== "design") return;
     
-    // eslint-disable-next-line no-console
-    console.log("[Customize] Side switching to:", designSide);
+
     
     // Store current canvas state from the PREVIOUS side before switching
     const storeCurrentCanvasState = () => {
@@ -724,14 +730,12 @@ export default function Customize() {
       const variant = selectedProduct.variants.find((v) => v.color === selectedColor);
       const imgUrl = variant ? pickVariantImageForSide(variant, designSide) : undefined;
       if (imgUrl) {
-        // eslint-disable-next-line no-console
-        console.log("[Customize] Loading", designSide, "image:", imgUrl);
+
         
         // Add new base image and wait for it to load before proceeding
         FabricImage.fromURL(imgUrl, { crossOrigin: "anonymous" })
           .then((img) => {
-            // eslint-disable-next-line no-console
-            console.log("[Customize] Base image loaded successfully for", designSide, "Dimensions:", img.width, "x", img.height);
+
             img.set({ selectable: false, evented: false });
             
             // Use actual canvas dimensions instead of hardcoded values
@@ -747,8 +751,7 @@ export default function Customize() {
             const top = (canvasH - newH) / 2;
             img.set({ left, top });
             
-            // eslint-disable-next-line no-console
-            console.log("[Customize] Image positioning - Scale:", scale, "Size:", newW, "x", newH, "Position:", left, ",", top);
+
             (img as any).name = "tshirt-base-photo";
             fabricCanvas.add(img);
             
@@ -761,8 +764,7 @@ export default function Customize() {
             
             // Now reload design layers for the NEW side with EXACT positions
             const targetLayers = designSide === "front" ? frontDesignLayersRef.current : backDesignLayersRef.current;
-            // eslint-disable-next-line no-console
-            console.log("[Customize] Loading", targetLayers.length, "design elements for", designSide);
+
             
             // Add each layer with exact positioning
             targetLayers.forEach((layer) => {
@@ -783,8 +785,7 @@ export default function Customize() {
                 (text as any).designSizeId = (layer as any).designSizeId || selectedDesignSize;
                 configureObjectControls(text);
                 fabricCanvas.add(text);
-                // eslint-disable-next-line no-console
-                console.log("[Customize] Added text:", layer.data.content, "at position:", layer.data.x, layer.data.y);
+
               } else if (layer.type === "image" && layer.data.url) {
                 FabricImage.fromURL(layer.data.url).then((img) => {
                   img.set({
@@ -801,24 +802,20 @@ export default function Customize() {
                   configureObjectControls(img);
                   fabricCanvas.add(img);
                   fabricCanvas.renderAll();
-                  // eslint-disable-next-line no-console
-                  console.log("[Customize] Added image at position:", layer.data.x, layer.data.y);
+
                 });
               }
             });
             
             fabricCanvas.renderAll();
-            // eslint-disable-next-line no-console
-            console.log("[Customize] Canvas rendered after adding", designSide, "image and layers");
+
           })
           .catch((err) => {
-            // eslint-disable-next-line no-console
-            console.error("[Customize] Failed to load base image for", designSide, ":", err);
+
             toast.error("Failed to load product image");
           });
       } else {
-        // eslint-disable-next-line no-console
-        console.warn("[Customize] No", designSide, "image available");
+
       }
     }
   }, [designSide, fabricCanvas, step, selectedProduct, selectedColor, showBackground]);
@@ -916,7 +913,7 @@ export default function Customize() {
         }
         setTemplateApplied(true);
       } catch (error) {
-        console.error("Failed to load template image", error);
+
         toast.error("Failed to load template image");
         setTemplateApplied(true);
       }
@@ -1089,16 +1086,12 @@ export default function Customize() {
     const calculateTotalPrice = () => {
       const objects = fabricCanvas.getObjects();
       
-      // Calculate for both front and back sides
-      let frontMaxPrice = 0;
-      let backMaxPrice = 0;
-      let frontTotalAreaPixels = 0;
-      let backTotalAreaPixels = 0;
-      let frontMaxWidthPixels = 0;
-      let frontMaxHeightPixels = 0;
-      let backMaxWidthPixels = 0;
-      let backMaxHeightPixels = 0;
-      const frontPerLayerMetrics: Array<{
+      // Only calculate for the CURRENT side
+      let maxPrice = 0;
+      let totalAreaPixels = 0;
+      let maxWidthPixels = 0;
+      let maxHeightPixels = 0;
+      const perLayerMetrics: Array<{
         id: string;
         type: string;
         widthPixels: number;
@@ -1110,18 +1103,8 @@ export default function Customize() {
         dpi?: number;
         cost: number;
       }> = [];
-      const backPerLayerMetrics: Array<{
-        id: string;
-        type: string;
-        widthPixels: number;
-        heightPixels: number;
-        areaPixels: number;
-        widthInches: number;
-        heightInches: number;
-        areaInches: number;
-        dpi?: number;
-        cost: number;
-      }> = [];
+
+
 
       objects.forEach((obj) => {
         // Skip background and base images
@@ -1131,7 +1114,9 @@ export default function Customize() {
 
         // Get the side this object belongs to
         const objSide = (obj as any).designSide as ("front" | "back" | undefined);
-        if (!objSide) return; // Skip if no side assigned
+        
+        // Only process objects for the CURRENT design side
+        if (objSide !== designSide) return;
 
         // Get the size preset ID from the object
         const sizeId = (obj as any).designSizeId;
@@ -1153,7 +1138,7 @@ export default function Customize() {
           elementPrice = areaPixels * PRICE_PER_PIXEL;
         }
 
-        // Calculate metrics for display (still needed for UI)
+        // Calculate metrics for display
         const layerDPI = (obj as any).dpi
           ? Number((obj as any).dpi)
           : ((obj.type === 'text' || obj.type === 'textbox') ? DEFAULT_TEXT_DPI : 300);
@@ -1179,51 +1164,36 @@ export default function Customize() {
           cost: elementPrice,
         };
 
-        if (objSide === "front") {
-          frontMaxPrice = Math.max(frontMaxPrice, elementPrice);
-          frontMaxWidthPixels = Math.max(frontMaxWidthPixels, widthPixels);
-          frontMaxHeightPixels = Math.max(frontMaxHeightPixels, heightPixels);
-          frontTotalAreaPixels += areaPixels;
-          frontPerLayerMetrics.push(metrics);
-        } else if (objSide === "back") {
-          backMaxPrice = Math.max(backMaxPrice, elementPrice);
-          backMaxWidthPixels = Math.max(backMaxWidthPixels, widthPixels);
-          backMaxHeightPixels = Math.max(backMaxHeightPixels, heightPixels);
-          backTotalAreaPixels += areaPixels;
-          backPerLayerMetrics.push(metrics);
-        }
+        maxPrice = Math.max(maxPrice, elementPrice);
+        maxWidthPixels = Math.max(maxWidthPixels, widthPixels);
+        maxHeightPixels = Math.max(maxHeightPixels, heightPixels);
+        totalAreaPixels += areaPixels;
+        perLayerMetrics.push(metrics);
       });
 
-      // Calculate metrics for front
-      const frontWidthInches = frontMaxWidthPixels / 300;
-      const frontHeightInches = frontMaxHeightPixels / 300;
-      const frontAreaInches = frontTotalAreaPixels / (300 * 300);
+      // Calculate metrics
+      const widthInches = maxWidthPixels / 300;
+      const heightInches = maxHeightPixels / 300;
+      const areaInches = totalAreaPixels / (300 * 300);
       
-      // Calculate metrics for back
-      const backWidthInches = backMaxWidthPixels / 300;
-      const backHeightInches = backMaxHeightPixels / 300;
-      const backAreaInches = backTotalAreaPixels / (300 * 300);
-      
-      // Update both sides' customization costs
-      setFrontCustomizationCost(frontMaxPrice);
-      setFrontDesignMetrics({ 
-        widthInches: frontWidthInches, 
-        heightInches: frontHeightInches, 
-        areaInches: frontAreaInches, 
-        totalPixels: frontTotalAreaPixels, 
-        perLayer: frontPerLayerMetrics 
-      });
-      
-      setBackCustomizationCost(backMaxPrice);
-      setBackDesignMetrics({ 
-        widthInches: backWidthInches, 
-        heightInches: backHeightInches, 
-        areaInches: backAreaInches, 
-        totalPixels: backTotalAreaPixels, 
-        perLayer: backPerLayerMetrics 
-      });
-      
-      console.log(`[Pricing] Front: $${frontMaxPrice.toFixed(2)}, Back: $${backMaxPrice.toFixed(2)} (based on size presets)`);
+      const metricsData = { 
+        widthInches, 
+        heightInches, 
+        areaInches, 
+        totalPixels: totalAreaPixels, 
+        perLayer: perLayerMetrics 
+      };
+
+      // Update ONLY the current side's customization costs
+      if (designSide === "front") {
+        setFrontCustomizationCost(maxPrice);
+        setFrontDesignMetrics(metricsData);
+        console.log(`[Pricing] Updated Front: $${maxPrice.toFixed(2)}`);
+      } else {
+        setBackCustomizationCost(maxPrice);
+        setBackDesignMetrics(metricsData);
+        console.log(`[Pricing] Updated Back: $${maxPrice.toFixed(2)}`);
+      }
     };
 
     // Debounced update to prevent too many rapid calculations
@@ -1249,7 +1219,7 @@ export default function Customize() {
       fabricCanvas.off("object:added", debouncedUpdate);
       fabricCanvas.off("object:removed", debouncedUpdate);
     };
-  }, [fabricCanvas, basePrice, frontDesignLayers, backDesignLayers]);
+  }, [fabricCanvas, basePrice, frontDesignLayers, backDesignLayers, designSide]);
 
   // Close color dropdown when clicking outside
   useEffect(() => {
@@ -1373,8 +1343,7 @@ export default function Customize() {
   const addProductPhotoBase = (canvas: FabricCanvas, url: string) => {
     FabricImage.fromURL(url, { crossOrigin: "anonymous" })
       .then((img) => {
-        // eslint-disable-next-line no-console
-        console.log("[Customize] Base image loaded successfully");
+
         img.set({ selectable: false, evented: false });
         // Use actual canvas dimensions instead of hardcoded values
         const canvasW = canvas.getWidth();
@@ -1396,14 +1365,11 @@ export default function Customize() {
           canvas.sendObjectToBack(bg);
         }
         canvas.renderAll();
-        // eslint-disable-next-line no-console
-        console.log("[Customize] Base image loaded successfully for", designSide, "Dimensions:", canvasW, "x", canvasH);
-        // eslint-disable-next-line no-console
-        console.log("[Customize] Image positioning - Scale:", scale, "Size:", newW, "x", newH, "Position:", (canvasW - newW) / 2, ",", (canvasH - newH) / 2);
+
+
       })
       .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error("[Customize] Failed to load base image:", err);
+
         toast.error("Failed to load product image");
       });
   };
@@ -1874,7 +1840,7 @@ export default function Customize() {
       pdf.save(`custom-tshirt-design-${Date.now()}.pdf`);
       toast.success("Design PDF downloaded!");
     } catch (error) {
-      console.error("Download error:", error);
+
       toast.error("Failed to download designs");
     }
   };
@@ -1885,8 +1851,7 @@ export default function Customize() {
     if (!token) throw new Error("Please login to add items to cart");
 
     try {
-      console.log("[Customize] Starting add to cart process...");
-      console.log("[Customize] User token exists:", !!token);
+
       
       // Sync current canvas object positions/styles back into layer state for accuracy
       const syncLayersFromCanvas = (layers: DesignLayer[]): DesignLayer[] => {
@@ -2057,13 +2022,14 @@ export default function Customize() {
 
       // Check if cart item is too large for MongoDB (16MB limit)
       const cartItemSize = JSON.stringify(cartItem).length;
-      console.log("[Customize] Cart item size:", cartItemSize, "bytes");
+
       
       if (cartItemSize > 15 * 1024 * 1024) { // 15MB safety margin
         throw new Error("Design data is too large. Please reduce image size or remove some elements.");
       }
       
       console.log("[Customize] Cart item prepared:", cartItem);
+      console.log(`[Customize] Adding to cart - Base Price: ${basePrice}, Front Cost: ${frontCustomizationCost}, Back Cost: ${backCustomizationCost}, Total: ${totalPrice}`);
       console.log("[Customize] Front design preview image length:", cartItem.frontDesign.previewImage?.length);
       console.log("[Customize] Front design preview image start:", cartItem.frontDesign.previewImage?.substring(0, 50));
       
@@ -2101,7 +2067,7 @@ export default function Customize() {
       setOrderInstruction("");
       setInstructionDialogOpen(false);
     } catch (error: any) {
-      console.error("[Customize] Add to cart error:", error);
+
       toast.error(error?.message || "Failed to add to cart");
     } finally {
       setAddingToCart(false);
@@ -2193,7 +2159,7 @@ export default function Customize() {
                 tempFabricCanvas.add(img);
                 tempFabricCanvas.sendObjectToBack(img);
               } catch (err) {
-                console.error("Failed to load base image for preview:", err);
+
               }
             }
           }
@@ -2264,11 +2230,13 @@ export default function Customize() {
           designData: currentDesignData,
           designLayers: updatedFrontLayers,
           previewImage: frontPreviewImage,
+          metrics: frontDesignMetrics,
         },
         backDesign: {
           designData: currentDesignData,
           designLayers: updatedBackLayers,
           previewImage: backPreviewImage,
+          metrics: backDesignMetrics,
         },
         totalPrice,
       };
