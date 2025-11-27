@@ -23,6 +23,7 @@ import paymentRoutes from './src/routes/payment.routes.js';
 import { notFound, errorHandler } from './src/middlewares/error.middleware.js';
 import trackingRoutes from './src/routes/tracking.routes.js';
 import { startTrackingSyncJob } from './src/services/tracking.service.js';
+import { initializeCleanupJobs } from './src/services/cleanup.service.js';
 
 dotenv.config();
 const app = express();
@@ -85,6 +86,7 @@ const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`API running on port ${PORT}`);
     startTrackingSyncJob();
+    initializeCleanupJobs(); // ✅ Start automated cleanup jobs
 });
 
 

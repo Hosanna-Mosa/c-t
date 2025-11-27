@@ -47,6 +47,28 @@ const checkoutSessionSchema = new mongoose.Schema(
 
 checkoutSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+// Method to cleanup session data after order creation
+checkoutSessionSchema.methods.cleanupAfterOrder = function() {
+  // Remove large data that's now stored in Order
+  this.items = undefined;
+  this.shippingAddress = undefined;
+  
+  // Keep only minimal coupon info
+  if (this.coupon) {
+    this.coupon = {
+      code: this.coupon.code,
+      discountAmount: this.coupon.discountAmount
+      // Remove: id (not needed after order creation)
+    };
+  }
+  
+  // Remove shipping service details (stored in Order)
+  this.shippingServiceCode = undefined;
+  this.shippingServiceName = undefined;
+  
+  return this.save();
+};
+
 export default mongoose.model('CheckoutSession', checkoutSessionSchema);
 
 

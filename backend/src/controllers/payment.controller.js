@@ -4,6 +4,10 @@ import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { isSquareConfigured, retrieveSquarePayment, retrievePaymentLink, searchPaymentsByOrder } from '../services/square.service.js';
 import { sendOrderConfirmationEmail } from '../services/email.service.js';
+import { 
+  createDesignSnapshotFromCartItem, 
+  createOptimizedCustomDesign 
+} from '../services/designSnapshot.service.js';
 
 const incrementCouponUsage = async (couponDoc) => {
   if (!couponDoc) return;
@@ -36,6 +40,52 @@ const finalizeSquareOrderFromSession = async ({ session, payment, squareOrderIdO
     shippingCost: session.shippingCost,
   });
 
+  // ✅ OPTIMIZATION: Create design snapshots and link to order
+  // This moves large design data from Order to Design collection (deduplication)
+  let snapshotsCreated = 0;
+  
+  for (const item of order.items) {
+    // Check if item has inline design data (needs optimization)
+    if (item.customDesign && (item.customDesign.frontDesign?.designData || item.customDesign.backDesign?.designData)) {
+      try {
+        // Create design snapshot
+        // We reconstruct a "cartItem" like object from the order item
+        const mockCartItem = {
+          productId: item.product,
+          productName: item.productName,
+          selectedColor: item.selectedColor,
+          selectedSize: item.selectedSize,
+          frontDesign: item.customDesign.frontDesign,
+          backDesign: item.customDesign.backDesign,
+          basePrice: 0, // Not needed for snapshot
+          frontCustomizationCost: 0,
+          backCustomizationCost: 0,
+          totalPrice: item.price
+        };
+        
+        const snapshot = await createDesignSnapshotFromCartItem(
+          mockCartItem,
+          order._id.toString(),
+          session.user
+        );
+        
+        if (snapshot) {
+          // Update order item with optimized design data
+          item.customDesign = createOptimizedCustomDesign(mockCartItem, snapshot);
+          snapshotsCreated++;
+        }
+      } catch (snapshotError) {
+        console.error(`[Payments] Failed to create snapshot for order item ${item._id}:`, snapshotError);
+        // Continue with inline data (fallback)
+      }
+    }
+  }
+  
+  if (snapshotsCreated > 0) {
+    console.log(`[Payments] Optimized ${snapshotsCreated} items with design snapshots for order ${order._id}`);
+    await order.save(); // Save changes
+  }
+
   order.payment.status = 'paid';
   order.payment.squarePaymentId = payment?.id || payment?.squarePaymentId;
   order.payment.squareOrderId = payment?.orderId || squareOrderIdOverride || order.payment.squareOrderId;
@@ -64,6 +114,11 @@ const finalizeSquareOrderFromSession = async ({ session, payment, squareOrderIdO
   };
   session.order = order._id;
   await session.save();
+
+  // ✅ Cleanup session data to reduce storage (removes items, address, etc.)
+  await session.cleanupAfterOrder();
+  
+  console.log('[Payments] Session cleaned up after order creation', { sessionId: session._id, orderId: order._id });
 
   return order;
 };
