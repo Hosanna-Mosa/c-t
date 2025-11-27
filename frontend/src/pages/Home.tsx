@@ -5,15 +5,15 @@ import { ArrowRight, Truck, Clock, Star } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getSettings, fetchProducts } from "@/lib/api";
+import { getSettings, fetchProducts, fetchCasualProducts, fetchDTFProducts } from "@/lib/api";
 
 type RawNewsItem =
   | string
   | {
-      title?: string;
-      description?: string;
-      linkLabel?: string;
-    };
+    title?: string;
+    description?: string;
+    linkLabel?: string;
+  };
 
 type HomeSettingsResponse = {
   homeBackground?: { url: string };
@@ -24,15 +24,23 @@ type HomeSettingsResponse = {
 export default function Home() {
   const [settings, setSettings] = useState<HomeSettingsResponse | null>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [casualProducts, setCasualProducts] = useState<any[]>([]);
+  const [dtfProducts, setDtfProducts] = useState<any[]>([]);
   const [shouldMarquee, setShouldMarquee] = useState(false);
   const tickerContainerRef = useRef<HTMLDivElement | null>(null);
   const messageRef = useRef<HTMLSpanElement | null>(null);
-  
+
   useEffect(() => {
-    getSettings().then(setSettings).catch(() => {});
+    getSettings().then(setSettings).catch(() => { });
     fetchProducts()
-      .then((data) => setProducts(data.slice(0, 4))) // Get first 4 products
+      .then((data) => setProducts(data)) // Get all products
       .catch(() => setProducts([]));
+    fetchCasualProducts()
+      .then((data) => setCasualProducts(data)) // Get all casual products
+      .catch(() => setCasualProducts([]));
+    fetchDTFProducts()
+      .then((data) => setDtfProducts(data)) // Get all DTF products
+      .catch(() => setDtfProducts([]));
   }, []);
 
   const tickerItems = useMemo(
@@ -111,7 +119,7 @@ export default function Home() {
       animation: blink 1.8s ease-in-out infinite;
     }
   `;
-  
+
   const benefits = [
     {
       icon: Truck,
@@ -194,7 +202,7 @@ export default function Home() {
                   <span className="text-primary">Custom T-Shirts</span>
                 </h1>
                 <p className="text-lg sm:text-xl text-muted-foreground max-w-xl">
-                  Add your company logo to custom t-shirts and promo products. 
+                  Add your company logo to custom t-shirts and promo products.
                   Fast, easy, and affordable.
                 </p>
               </div>
@@ -271,20 +279,20 @@ export default function Home() {
       </section>
 
       {/* Featured Products */}
-      <section className="py-12 sm:py-20">
+      <section className="py-4 sm:py-10">
         <div className="container mx-auto px-4">
           <div className="mb-8 sm:mb-12 text-center">
-            <h2 className="mb-4 text-2xl sm:text-3xl font-bold">Popular Products</h2>
+            <h2 className="mb-4 text-2xl sm:text-3xl font-bold">Design Products</h2>
             <p className="text-sm sm:text-base text-muted-foreground">
               Choose from our wide selection of customizable apparel
             </p>
           </div>
 
-          <div className="grid gap-4 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
             {products.length > 0 ? (
               products.map((product) => (
                 <Link key={product._id} to={`/customize`} state={{ productId: product._id }}>
-                  <Card className="group hover-lift cursor-pointer overflow-hidden">
+                  <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
                     <div className="aspect-square overflow-hidden bg-muted">
                       <img
                         src={product.variants?.[0]?.frontImages?.[0]?.url || product.variants?.[0]?.images?.[0]?.url || "https://via.placeholder.com/400"}
@@ -301,14 +309,13 @@ export default function Home() {
               ))
             ) : (
               ["T-Shirts", "Hoodies", "Polo Shirts", "Hats"].map((product, index) => (
-                <Card key={index} className="group hover-lift cursor-pointer overflow-hidden">
+                <Card key={index} className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
-                      src={`https://images.unsplash.com/photo-${
-                        index === 0 ? "1521572163474" :
+                      src={`https://images.unsplash.com/photo-${index === 0 ? "1521572163474" :
                         index === 1 ? "1556821011-f6b8af2ab3" :
-                        index === 2 ? "1596755094514" : "1588850561407"
-                      }-6864f9cf17ab?w=400&h=400&fit=crop`}
+                          index === 2 ? "1596755094514" : "1588850561407"
+                        }-6864f9cf17ab?w=400&h=400&fit=crop`}
                       alt={product}
                       className="h-full w-full object-cover transition-transform group-hover:scale-110"
                     />
@@ -330,6 +337,104 @@ export default function Home() {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Normal Products */}
+      <section className="py-6 sm:py-10 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="mb-8 sm:mb-12 text-center">
+            <h2 className="mb-4 text-2xl sm:text-3xl font-bold">Normal Products</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Explore our collection of ready-to-wear casual apparel
+            </p>
+          </div>
+
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+            {casualProducts.length > 0 ? (
+              casualProducts.map((product) => (
+                <Link key={product._id} to={`/products`}>
+                  <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
+                    <div className="aspect-square overflow-hidden bg-muted">
+                      <img
+                        src={product.images?.[0]?.url || "https://via.placeholder.com/400"}
+                        alt={product.name}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                      />
+                    </div>
+                    <CardContent className="p-3 sm:p-4">
+                      <h3 className="font-semibold text-sm sm:text-base">{product.name}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">${product.price.toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No casual products available at the moment
+              </div>
+            )}
+          </div>
+
+          {casualProducts.length > 0 && (
+            <div className="mt-8 text-center">
+              <Link to="/products">
+                <Button variant="outline" size="lg">
+                  View All Normal Products
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* DTF Products */}
+      <section className="py-6 sm:py-10">
+        <div className="container mx-auto px-4">
+          <div className="mb-8 sm:mb-12 text-center">
+            <h2 className="mb-4 text-2xl sm:text-3xl font-bold">DTF Products</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              High-quality Direct to Film prints for your custom designs
+            </p>
+          </div>
+
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+            {dtfProducts.length > 0 ? (
+              dtfProducts.map((product) => (
+                <Link key={product._id} to={`/dtf`}>
+                  <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
+                    <div className="aspect-square overflow-hidden bg-muted">
+                      <img
+                        src={product.image?.url || "https://via.placeholder.com/400"}
+                        alt={product.title}
+                        className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                      />
+                    </div>
+                    <CardContent className="p-3 sm:p-4">
+                      <h3 className="font-semibold text-sm sm:text-base">{product.title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">${product.cost.toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No DTF products available at the moment
+              </div>
+            )}
+          </div>
+
+          {dtfProducts.length > 0 && (
+            <div className="mt-8 text-center">
+              <Link to="/dtf">
+                <Button variant="outline" size="lg">
+                  View All DTF Products
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

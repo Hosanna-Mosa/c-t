@@ -60,21 +60,31 @@ export const getStats = async (req, res) => {
       orders: item.orders
     }));
 
-    // Category Distribution (based on productType in orders)
+    // Category Distribution (based on productModel in orders)
     const categoryAgg = await Order.aggregate([
       { $unwind: '$items' },
       {
         $group: {
-          _id: '$items.productType',
+          _id: '$items.productModel',
           count: { $sum: 1 }
         }
       }
     ]);
 
-    const categoryData = categoryAgg.map(item => ({
-      name: item._id === 'custom' ? 'Custom Tees' : 'Casual Wear',
-      value: item.count
-    }));
+    const categoryData = categoryAgg.map(item => {
+      let name = 'Unknown';
+      if (item._id === 'Product') {
+        name = 'Design Products';
+      } else if (item._id === 'CasualProduct') {
+        name = 'Normal Products';
+      } else if (item._id === 'DTFProduct') {
+        name = 'DTF Products';
+      }
+      return {
+        name,
+        value: item.count
+      };
+    });
 
     // Recent Orders
     const recentOrders = await Order.find()
