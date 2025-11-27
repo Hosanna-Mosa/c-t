@@ -29,8 +29,8 @@ export const createOrder = async (req, res) => {
       productModel === 'Product'
         ? 'custom'
         : productModel === 'CasualProduct'
-        ? 'casual'
-        : 'dtf',
+          ? 'casual'
+          : 'dtf',
     productName: product.name || product.title,
     productSlug: product.slug,
     productImage: product.images?.[0]?.url || product.image?.url,
@@ -65,13 +65,13 @@ export const createOrderFromCart = async (req, res) => {
       shippingServiceCode,
       shippingServiceName,
     } = req.body;
-    
+
     // Get user with cart
     const user = await User.findById(req.user._id);
     if (!user || !user.cart.length) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
     }
-    
+
     // Normalize a side (front/back) design: upload preview if it's a data URL
     const normalizeSideDesign = async (design) => {
       if (!design) return undefined;
@@ -115,7 +115,7 @@ export const createOrderFromCart = async (req, res) => {
 
       return { ...design, previewImage, metrics };
     };
-    
+
     // Convert cart items to order items (with normalized previews)
     const orderItems = [];
     for (const cartItem of user.cart) {
@@ -128,16 +128,16 @@ export const createOrderFromCart = async (req, res) => {
         (cartItem.productType === 'casual'
           ? 'CasualProduct'
           : cartItem.productType === 'dtf'
-          ? 'DTFProduct'
-          : 'Product');
+            ? 'DTFProduct'
+            : 'Product');
 
       const productTypeName =
         cartItem.productType ||
         (productModelName === 'CasualProduct'
           ? 'casual'
           : productModelName === 'DTFProduct'
-          ? 'dtf'
-          : 'custom');
+            ? 'dtf'
+            : 'custom');
 
       orderItems.push({
         product: cartItem.productId,
@@ -154,27 +154,27 @@ export const createOrderFromCart = async (req, res) => {
         dtfPrintFile: productTypeName === 'dtf' ? cartItem.dtfPrintFile : undefined,
         customDesign: isCustom
           ? {
-              frontDesign,
-              backDesign,
-              selectedColor: cartItem.selectedColor,
-              selectedSize: cartItem.selectedSize,
-            }
+            frontDesign,
+            backDesign,
+            selectedColor: cartItem.selectedColor,
+            selectedSize: cartItem.selectedSize,
+          }
           : undefined,
       });
     }
-    
+
     // Calculate subtotal
     const subtotal = user.cart.reduce((sum, item) => sum + (item.totalPrice * item.quantity), 0);
-    
+
     // Handle coupon if provided
     let finalDiscountAmount = 0;
     let couponData = null;
     let couponDoc = null;
-    
+
     if (couponCode && discountAmount) {
       // Validate coupon one more time before creating order
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase().trim(), isActive: true });
-      
+
       if (coupon) {
         const now = new Date();
         if (now >= coupon.validFrom && now <= coupon.validTo) {
@@ -192,13 +192,13 @@ export const createOrderFromCart = async (req, res) => {
         }
       }
     }
-    
+
     // Calculate shipping cost (convert to cents if needed, or use as-is if already in cents)
     const shippingCostInCents = shippingCost ? (shippingCost < 100 ? Math.round(shippingCost * 100) : shippingCost) : 0;
-    
+
     // Calculate final total (subtotal - discount + shipping)
     const total = Math.max(0, subtotal - finalDiscountAmount + shippingCostInCents);
-    
+
     // Prepare shared order data
     const baseOrderData = {
       user: req.user._id,
@@ -228,10 +228,10 @@ export const createOrderFromCart = async (req, res) => {
         shippingServiceName: shippingServiceName || null,
         coupon: couponData
           ? {
-              id: couponDoc?._id,
-              code: couponData.code,
-              discountAmount: couponData.discountAmount,
-            }
+            id: couponDoc?._id,
+            code: couponData.code,
+            discountAmount: couponData.discountAmount,
+          }
           : undefined,
       });
 
@@ -286,7 +286,7 @@ export const createOrderFromCart = async (req, res) => {
     // Clear user's cart after successful order for COD
     user.cart = [];
     await user.save();
-    
+
     res.status(201).json({ success: true, data: order });
   } catch (error) {
     console.error('[Orders] createOrderFromCart failed:', error);
@@ -312,11 +312,11 @@ export const getOrderById = async (req, res) => {
   const order = await Order.findById(id)
     .populate('user', 'name email phone')
     .populate('items.product', 'name slug price variants');
-  
+
   if (!order) {
     return res.status(404).json({ success: false, message: 'Order not found' });
   }
-  
+
   res.json({ success: true, data: order });
 };
 

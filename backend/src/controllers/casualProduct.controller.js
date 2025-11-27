@@ -141,7 +141,7 @@ export const updateCasualProduct = async (req, res) => {
     if (Array.isArray(removeImageIds) && removeImageIds.length) {
       product.images = product.images.filter((img) => {
         if (removeImageIds.includes(img.public_id)) {
-          destroyImage(img.public_id).catch(() => {});
+          destroyImage(img.public_id).catch(() => { });
           return false;
         }
         return true;

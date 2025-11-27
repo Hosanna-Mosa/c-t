@@ -9,12 +9,12 @@ const orderItemSchema = new mongoose.Schema(
     },
     productModel: {
       type: String,
-      enum: ['Product', 'CasualProduct'],
+      enum: ['Product', 'CasualProduct', 'DTFProduct'],
       default: 'Product',
     },
     productType: {
       type: String,
-      enum: ['custom', 'casual'],
+      enum: ['custom', 'casual', 'dtf'],
       default: 'custom',
     },
     productName: { type: String, required: true },

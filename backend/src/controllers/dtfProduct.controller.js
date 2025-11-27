@@ -84,7 +84,7 @@ export const updateDTFProduct = async (req, res) => {
 
     if (req.file) {
       if (product.image?.public_id) {
-        await destroyImage(product.image.public_id).catch(() => {});
+        await destroyImage(product.image.public_id).catch(() => { });
       }
       const uploadedImage = await uploadImage(req.file.path, 'customtees/dtf-products');
       product.image = uploadedImage;
@@ -106,7 +106,7 @@ export const deleteDTFProduct = async (req, res) => {
     }
 
     if (product.image?.public_id) {
-      await destroyImage(product.image.public_id).catch(() => {});
+      await destroyImage(product.image.public_id).catch(() => { });
     }
 
     await product.deleteOne();
