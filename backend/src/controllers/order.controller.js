@@ -8,6 +8,10 @@ import CheckoutSession from '../models/CheckoutSession.js';
 import { uploadDataUrl } from '../services/cloudinary.service.js';
 import { createSquareCheckoutSession, isSquareConfigured } from '../services/square.service.js';
 import { sendOrderConfirmationEmail } from '../services/email.service.js';
+import { 
+  createDesignSnapshotFromCartItem, 
+  createOptimizedCustomDesign 
+} from '../services/designSnapshot.service.js';
 
 export const createOrder = async (req, res) => {
   const { productId, quantity = 1, paymentMethod, shippingAddress } = req.body;
@@ -117,12 +121,36 @@ export const createOrderFromCart = async (req, res) => {
       return { ...design, previewImage, metrics };
     };
 
-    // Convert cart items to order items (with normalized previews)
-    const orderItems = [];
-    for (const cartItem of user.cart) {
+    // ✅ OPTIMIZATION: Create design snapshots first (before order creation)
+    // This allows us to reference snapshots instead of storing full design data
+    const designSnapshots = new Map(); // cartItemIndex -> snapshot
+    
+    for (let i = 0; i < user.cart.length; i++) {
+      const cartItem = user.cart[i];
       const isCustom = cartItem.productType === 'custom';
-      const frontDesign = isCustom ? await normalizeSideDesign(cartItem.frontDesign) : undefined;
-      const backDesign = isCustom ? await normalizeSideDesign(cartItem.backDesign) : undefined;
+      
+      if (isCustom && (cartItem.frontDesign || cartItem.backDesign)) {
+        // Normalize designs (upload previews if needed)
+        const normalizedCartItem = {
+          ...cartItem,
+          frontDesign: await normalizeSideDesign(cartItem.frontDesign),
+          backDesign: await normalizeSideDesign(cartItem.backDesign)
+        };
+        
+        // Create design snapshot (will be linked to order after creation)
+        // We'll update with orderId after order is created
+        designSnapshots.set(i, {
+          cartItem: normalizedCartItem,
+          needsSnapshot: true
+        });
+      }
+    }
+
+    // Convert cart items to order items (with optimized design references)
+    const orderItems = [];
+    for (let i = 0; i < user.cart.length; i++) {
+      const cartItem = user.cart[i];
+      const isCustom = cartItem.productType === 'custom';
 
       const productModelName =
         cartItem.productModel ||
@@ -140,12 +168,16 @@ export const createOrderFromCart = async (req, res) => {
             ? 'dtf'
             : 'custom');
 
+      // Get normalized cart item if it has design snapshot
+      const snapshotData = designSnapshots.get(i);
+      const itemToUse = snapshotData?.cartItem || cartItem;
+
       orderItems.push({
         product: cartItem.productId,
         productModel: productModelName,
         productType: productTypeName,
         productName: cartItem.productName,
-        productSlug: cartItem.productSlug,
+        // ❌ productSlug removed - not needed in orders
         productImage: cartItem.productImage,
         selectedColor: cartItem.selectedColor,
         selectedSize: cartItem.selectedSize,
@@ -153,14 +185,18 @@ export const createOrderFromCart = async (req, res) => {
         price: cartItem.totalPrice,
         instruction: cartItem.instruction,
         dtfPrintFile: productTypeName === 'dtf' ? cartItem.dtfPrintFile : undefined,
-        customDesign: isCustom
-          ? {
-            frontDesign,
-            backDesign,
-            selectedColor: cartItem.selectedColor,
-            selectedSize: cartItem.selectedSize,
-          }
-          : undefined,
+        
+        // ✅ Store cart item index temporarily (for snapshot linking)
+        _cartItemIndex: i,
+        
+        // Include full design data initially (needed for Square session)
+        // Will be replaced with snapshot reference for COD orders
+        customDesign: isCustom ? {
+          frontDesign: itemToUse.frontDesign,
+          backDesign: itemToUse.backDesign,
+          selectedColor: cartItem.selectedColor,
+          selectedSize: cartItem.selectedSize,
+        } : undefined,
       });
     }
 
@@ -282,8 +318,51 @@ export const createOrderFromCart = async (req, res) => {
       },
     });
 
+    // ✅ OPTIMIZATION: Create design snapshots and link to order
+    if (designSnapshots.size > 0) {
+      console.log(`[Orders] Creating ${designSnapshots.size} design snapshots for order ${order._id}`);
+      
+      for (const [cartItemIndex, snapshotData] of designSnapshots.entries()) {
+        try {
+          // Create design snapshot
+          const snapshot = await createDesignSnapshotFromCartItem(
+            snapshotData.cartItem,
+            order._id.toString(),
+            req.user._id
+          );
+          
+          // Find corresponding order item and update with optimized design data
+          const orderItem = order.items.find(item => item._cartItemIndex === cartItemIndex);
+          if (orderItem && snapshot) {
+            orderItem.customDesign = createOptimizedCustomDesign(snapshotData.cartItem, snapshot);
+            console.log(`[Orders] Linked snapshot ${snapshot._id} to order item`);
+          }
+        } catch (snapshotError) {
+          console.error(`[Orders] Failed to create snapshot for cart item ${cartItemIndex}:`, snapshotError);
+          // Fallback: keep inline design data if snapshot creation fails
+          const orderItem = order.items.find(item => item._cartItemIndex === cartItemIndex);
+          if (orderItem) {
+            orderItem.customDesign = {
+              frontDesign: snapshotData.cartItem.frontDesign,
+              backDesign: snapshotData.cartItem.backDesign
+            };
+          }
+        }
+      }
+      
+      // Remove temporary _cartItemIndex field
+      order.items.forEach(item => {
+        delete item._cartItemIndex;
+      });
+      
+      // Save order with linked snapshots
+      await order.save();
+      console.log(`[Orders] Order ${order._id} saved with ${designSnapshots.size} design snapshots`);
+    }
+
     await incrementCouponUsage(couponDoc);
 
+    // Clear user's cart after successful order for COD
     // Clear user's cart after successful order for COD
     user.cart = [];
     await user.save();

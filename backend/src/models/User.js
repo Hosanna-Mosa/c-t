@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema(
           default: 'custom',
         },
         productName: { type: String, required: true },
-        productSlug: { type: String, required: true },
+        productSlug: { type: String }, // Optional - not essential for cart
         productImage: { type: String },
         selectedColor: { type: String },
         selectedSize: { type: String },

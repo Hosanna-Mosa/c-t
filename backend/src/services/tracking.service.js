@@ -190,6 +190,8 @@ export const fetchTrackingDetails = async (trackingNumber) => {
   };
 };
 
+import TrackingHistory from '../models/TrackingHistory.js';
+
 export const persistTrackingOnOrder = async (order, trackingData, { skipDeliveryEmail = false } = {}) => {
   if (!order || !trackingData) return order;
   const previousNotified = order.lastTrackingStatusNotified;
@@ -198,14 +200,28 @@ export const persistTrackingOnOrder = async (order, trackingData, { skipDelivery
     lastTrackingSyncAt: new Date(),
   };
 
+  // ✅ OPTIMIZATION: Store detailed history in separate collection
   if (Array.isArray(trackingData.events) && trackingData.events.length) {
-    updates.trackingHistory = trackingData.events.slice(0, 50).map((event) => ({
-      status: event.status,
-      code: event.code,
-      description: event.description,
-      location: event.location,
-      date: event.date,
-    }));
+    try {
+      await TrackingHistory.findOneAndUpdate(
+        { order: order._id },
+        {
+          order: order._id,
+          trackingNumber: order.trackingNumber,
+          events: trackingData.events.slice(0, 50).map((event) => ({
+            status: event.status,
+            code: event.code,
+            description: event.description,
+            location: event.location,
+            date: event.date,
+          })),
+          lastSyncAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error('[Tracking] Failed to update TrackingHistory:', err);
+    }
   }
 
   updates.trackingSummary = {

@@ -18,13 +18,42 @@ const orderItemSchema = new mongoose.Schema(
       default: 'custom',
     },
     productName: { type: String, required: true },
-    productSlug: { type: String },
+    // ❌ productSlug removed - not needed for fulfillment/display
     productImage: { type: String },
     selectedColor: { type: String },
     selectedSize: { type: String },
     quantity: { type: Number, default: 1 },
     price: { type: Number, required: true }, // snapshot in cents
+    
+    // ✅ OPTIMIZED: Reference design snapshot instead of storing full data
     customDesign: {
+      // Reference to Design snapshot (immutable order record)
+      designSnapshotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Design' },
+      
+      // ✅ Keep preview images for quick display (needed for fulfillment)
+      previewImages: {
+        front: String,
+        back: String
+      },
+      
+      // ✅ Keep metrics for production (needed for printing)
+      metrics: {
+        front: {
+          widthInches: Number,
+          heightInches: Number,
+          areaInches: Number
+        },
+        back: {
+          widthInches: Number,
+          heightInches: Number,
+          areaInches: Number
+        }
+      },
+      
+      // ❌ REMOVED: designData, designLayers (stored in Design snapshot)
+      // Access via: order.populate('items.customDesign.designSnapshotId')
+      
+      // BACKWARD COMPATIBILITY: Keep old structure for existing orders
       frontDesign: {
         designData: { type: Object },
         designLayers: [{ type: Object }],
@@ -33,8 +62,6 @@ const orderItemSchema = new mongoose.Schema(
           heightInches: Number,
           areaInches: Number,
           totalPixels: Number,
-          // Accept either objects or strings (Mixed) to be tolerant of
-          // different client payload shapes during order creation
           perLayer: [mongoose.Schema.Types.Mixed]
         },
         previewImage: { type: String },
@@ -104,15 +131,16 @@ const orderSchema = new mongoose.Schema(
       default: 'pending',
     },
     carrierHandoffAt: { type: Date },
-    trackingHistory: [
-      {
-        status: String,
-        description: String,
-        code: String,
-        location: String,
-        date: Date,
-      },
-    ],
+    // ❌ trackingHistory moved to TrackingHistory collection
+    // trackingHistory: [
+    //   {
+    //     status: String,
+    //     description: String,
+    //     code: String,
+    //     location: String,
+    //     date: Date,
+    //   },
+    // ],
     trackingSummary: {
       status: String,
       description: String,
