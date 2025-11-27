@@ -2,6 +2,9 @@ import User from '../models/User.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Design from '../models/Design.js';
+import CasualProduct from '../models/CasualProduct.js';
+import DTFProduct from '../models/DTFProduct.js';
+import { sendDeliveryNotificationEmail } from '../services/email.service.js';
 
 export const listUsers = async (req, res) => {
   const users = await User.find().select('-password').sort({ createdAt: -1 });
@@ -13,8 +16,8 @@ export const getStats = async (req, res) => {
     const [users, products, casualProducts, dtfProducts, ordersCount] = await Promise.all([
       User.countDocuments(),
       Product.countDocuments(),
-      import('../models/CasualProduct.js').then(m => m.default.countDocuments()),
-      import('../models/DTFProduct.js').then(m => m.default.countDocuments()),
+      CasualProduct.countDocuments(),
+      DTFProduct.countDocuments(),
       Order.countDocuments(),
     ]);
 
@@ -169,8 +172,55 @@ export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const order = await Order.findById(id);
+    
+    const order = await Order.findById(id).populate('user');
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    // If status is changing to 'delivered', update stock and sold count
+    if (status === 'delivered' && order.status !== 'delivered') {
+      console.log(`[AdminController] Status changing to delivered for Order ID: ${id}`);
+      try {
+        for (const item of order.items) {
+          let Model;
+          if (item.productModel === 'CasualProduct') {
+            Model = CasualProduct;
+          } else if (item.productModel === 'DTFProduct') {
+            Model = DTFProduct;
+          } else {
+            Model = Product;
+          }
+
+          if (Model) {
+            await Model.findByIdAndUpdate(item.product, {
+              $inc: {
+                stock: -item.quantity,
+                soldCount: item.quantity
+              }
+            });
+          }
+        }
+        order.deliveredAt = new Date();
+
+        // Send delivery email
+        if (order.user?.email) {
+          console.log(`[AdminController] Sending delivery email to: ${order.user.email}, Tracking: ${order.trackingNumber || 'N/A'}`);
+          const emailResult = await sendDeliveryNotificationEmail({
+            email: order.user.email,
+            name: order.user.name,
+            trackingNumber: order.trackingNumber || 'N/A',
+            orderId: order._id.toString(),
+          });
+          console.log(`[AdminController] Delivery email result:`, emailResult);
+          order.deliveryEmailSentAt = new Date();
+        } else {
+          console.log(`[AdminController] No user email found for order ${id}`);
+        }
+
+      } catch (error) {
+        console.error('[AdminController] Error updating stock/sold count or sending email:', error);
+      }
+    }
+
     order.status = status || order.status;
     await order.save();
     res.json({ success: true, data: order });

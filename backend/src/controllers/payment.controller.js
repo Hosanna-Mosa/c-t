@@ -3,6 +3,7 @@ import CheckoutSession from '../models/CheckoutSession.js';
 import Coupon from '../models/Coupon.js';
 import User from '../models/User.js';
 import { isSquareConfigured, retrieveSquarePayment, retrievePaymentLink, searchPaymentsByOrder } from '../services/square.service.js';
+import { sendOrderConfirmationEmail } from '../services/email.service.js';
 
 const incrementCouponUsage = async (couponDoc) => {
   if (!couponDoc) return;

@@ -7,6 +7,7 @@ import Coupon from '../models/Coupon.js';
 import CheckoutSession from '../models/CheckoutSession.js';
 import { uploadDataUrl } from '../services/cloudinary.service.js';
 import { createSquareCheckoutSession, isSquareConfigured } from '../services/square.service.js';
+import { sendOrderConfirmationEmail } from '../services/email.service.js';
 
 export const createOrder = async (req, res) => {
   const { productId, quantity = 1, paymentMethod, shippingAddress } = req.body;
@@ -287,6 +288,15 @@ export const createOrderFromCart = async (req, res) => {
     user.cart = [];
     await user.save();
 
+    // Send confirmation email
+    await sendOrderConfirmationEmail({
+      email: user.email,
+      name: user.name,
+      orderId: order._id.toString(),
+      total: order.total,
+      items: order.items
+    });
+
     res.status(201).json({ success: true, data: order });
   } catch (error) {
     console.error('[Orders] createOrderFromCart failed:', error);
@@ -325,6 +335,36 @@ export const updateStatus = async (req, res) => {
   const { status } = req.body;
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+  // If status is changing to 'delivered', update stock and sold count
+  if (status === 'delivered' && order.status !== 'delivered') {
+    try {
+      for (const item of order.items) {
+        let Model;
+        if (item.productModel === 'CasualProduct') {
+          Model = CasualProduct;
+        } else if (item.productModel === 'DTFProduct') {
+          Model = DTFProduct;
+        } else {
+          Model = Product;
+        }
+
+        if (Model) {
+          await Model.findByIdAndUpdate(item.product, {
+            $inc: {
+              stock: -item.quantity,
+              soldCount: item.quantity
+            }
+          });
+        }
+      }
+      order.deliveredAt = new Date();
+    } catch (error) {
+      console.error('Error updating stock/sold count:', error);
+      // Continue with status update even if stock update fails, or handle as needed
+    }
+  }
+
   order.status = status || order.status;
   await order.save();
   res.json({ success: true, data: order });
