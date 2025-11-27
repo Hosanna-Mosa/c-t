@@ -21,6 +21,8 @@ const casualProductSchema = new mongoose.Schema(
     colors: [{ type: String, trim: true }],
     sizes: [{ type: String, trim: true }],
     images: { type: [imageSchema], default: [] },
+    stock: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     metadata: {
       material: { type: String, trim: true },

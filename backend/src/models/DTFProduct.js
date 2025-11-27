@@ -15,6 +15,8 @@ const dtfProductSchema = new mongoose.Schema(
     description: { type: String, trim: true },
     cost: { type: Number, required: true, min: 0 },
     image: { type: dtfImageSchema, required: true },
+    stock: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

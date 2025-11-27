@@ -89,6 +89,7 @@ const productSchema = new mongoose.Schema(
     variants: [variantSchema],
 
     stock: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0 }, // Track total units sold
 
     // 👇 Customization fields
     customizable: { type: Boolean, default: false }, // enable/disable customization

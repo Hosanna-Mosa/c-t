@@ -1099,7 +1099,7 @@ export default function Customize() {
       const objects = fabricCanvas.getObjects();
       
       // Only calculate for the CURRENT side
-      let maxPrice = 0;
+      let totalPrice = 0; // Changed from maxPrice to totalPrice
       let totalAreaPixels = 0;
       let maxWidthPixels = 0;
       let maxHeightPixels = 0;
@@ -1176,7 +1176,7 @@ export default function Customize() {
           cost: elementPrice,
         };
 
-        maxPrice = Math.max(maxPrice, elementPrice);
+        totalPrice += elementPrice; // Changed from Math.max to addition
         maxWidthPixels = Math.max(maxWidthPixels, widthPixels);
         maxHeightPixels = Math.max(maxHeightPixels, heightPixels);
         totalAreaPixels += areaPixels;
@@ -1198,13 +1198,13 @@ export default function Customize() {
 
       // Update ONLY the current side's customization costs
       if (designSide === "front") {
-        setFrontCustomizationCost(maxPrice);
+        setFrontCustomizationCost(totalPrice); // Changed from maxPrice to totalPrice
         setFrontDesignMetrics(metricsData);
-        console.log(`[Pricing] Updated Front: $${maxPrice.toFixed(2)}`);
+        console.log(`[Pricing] Updated Front: $${totalPrice.toFixed(2)}`);
       } else {
-        setBackCustomizationCost(maxPrice);
+        setBackCustomizationCost(totalPrice); // Changed from maxPrice to totalPrice
         setBackDesignMetrics(metricsData);
-        console.log(`[Pricing] Updated Back: $${maxPrice.toFixed(2)}`);
+        console.log(`[Pricing] Updated Back: $${totalPrice.toFixed(2)}`);
       }
     };
 
@@ -1221,6 +1221,9 @@ export default function Customize() {
     fabricCanvas.on("object:rotating", debouncedUpdate);
     fabricCanvas.on("object:added", debouncedUpdate);
     fabricCanvas.on("object:removed", debouncedUpdate);
+
+    // Calculate immediately when design layers change
+    calculateTotalPrice();
 
     // Cleanup
     return () => {
@@ -1498,7 +1501,12 @@ export default function Customize() {
         cost: selectedProduct?.customizationPricing?.perTextLayer || 10,
         designSizeId: selectedDesignSize, // Save the size preset ID
       };
-      setDesignLayers([...designLayers, layer]);
+      
+      if (designSide === "front") {
+        setFrontDesignLayers([...frontDesignLayers, layer]);
+      } else {
+        setBackDesignLayers([...backDesignLayers, layer]);
+      }
 
       toast.success("Text added! Drag to reposition.");
     }
@@ -1567,6 +1575,8 @@ export default function Customize() {
         } else {
           setBackDesignLayers((prev) => [...prev, newLayer]);
         }
+        
+        toast.success("Image added! Drag to reposition.");
       });
     };
     reader.readAsDataURL(file);
@@ -1584,6 +1594,12 @@ export default function Customize() {
       (activeObject as any).name !== "bg-photo"
     ) {
       const layerId = (activeObject as any).layerId;
+      
+      // Remove from canvas first
+      fabricCanvas.remove(activeObject);
+      fabricCanvas.renderAll();
+      
+      // Then update the design layers state
       if (layerId) {
         if (designSide === "front") {
           setFrontDesignLayers(frontDesignLayers.filter((layer) => layer.id !== layerId));
@@ -1591,8 +1607,7 @@ export default function Customize() {
           setBackDesignLayers(backDesignLayers.filter((layer) => layer.id !== layerId));
         }
       }
-      fabricCanvas.remove(activeObject);
-      fabricCanvas.renderAll();
+      
       toast.success("Element deleted!");
     }
   };
