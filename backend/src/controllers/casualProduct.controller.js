@@ -13,8 +13,21 @@ const parseArrayField = (value) => {
   return [];
 };
 
-export const listCasualProducts = async (_req, res) => {
-  const products = await CasualProduct.find({ isActive: true }).sort({ createdAt: -1 });
+export const listCasualProducts = async (req, res) => {
+  const { sortBy = 'createdAt', limit } = req.query;
+  
+  let sortCriteria = { createdAt: -1 };
+  if (sortBy === 'popular' || sortBy === 'soldCount') {
+    sortCriteria = { soldCount: -1, createdAt: -1 };
+  }
+  
+  let query = CasualProduct.find({ isActive: true }).sort(sortCriteria);
+  
+  if (limit) {
+    query = query.limit(parseInt(limit));
+  }
+  
+  const products = await query;
   res.json({ success: true, data: products });
 };
 

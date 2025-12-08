@@ -36,6 +36,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { CustomizeSkeleton } from "@/components/Skeleton";
 
 // Types
 type Step = "category" | "product" | "design";
@@ -57,6 +58,8 @@ interface Product {
     color: string;
     colorCode: string;
     images: Array<{ url: string; public_id: string }>;
+    frontImages?: Array<{ url: string; public_id: string }>;
+    backImages?: Array<{ url: string; public_id: string }>;
   }>;
   customizable: boolean;
   customizationType: "predefined" | "own" | "both";
@@ -119,7 +122,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 90, // 3 inches at 300 DPI
     height: 90, 
     description: "3\" × 3\"",
-    price: 50 // Fixed price in $
+    price: 12 // Fixed price in $
   },
   { 
     id: "small", 
@@ -127,7 +130,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 150, // 5 inches at 300 DPI
     height: 150, 
     description: "5\" × 5\"",
-    price: 100 // Fixed price in $
+    price: 20 // Fixed price in $
   },
   { 
     id: "medium", 
@@ -135,7 +138,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 210, // 7 inches at 300 DPI
     height: 280, // Updated height (280px = ~9.33 inches at 300 DPI)
     description: "7\" × 9.33\"",
-    price: 150 // Fixed price in $
+    price: 25 // Fixed price in $
   },
   { 
     id: "large", 
@@ -143,7 +146,7 @@ const STANDARD_DESIGN_SIZES = [
     width: 300, // 10 inches at 300 DPI
     height: 300, 
     description: "10\" × 10\"",
-    price: 200 // Fixed price in $
+    price: 35 // Fixed price in $
   },
 ];
 
@@ -1200,11 +1203,9 @@ export default function Customize() {
       if (designSide === "front") {
         setFrontCustomizationCost(totalPrice); // Changed from maxPrice to totalPrice
         setFrontDesignMetrics(metricsData);
-        console.log(`[Pricing] Updated Front: $${totalPrice.toFixed(2)}`);
       } else {
         setBackCustomizationCost(totalPrice); // Changed from maxPrice to totalPrice
         setBackDesignMetrics(metricsData);
-        console.log(`[Pricing] Updated Back: $${totalPrice.toFixed(2)}`);
       }
     };
 
@@ -2055,10 +2056,6 @@ export default function Customize() {
         throw new Error("Design data is too large. Please reduce image size or remove some elements.");
       }
       
-      console.log("[Customize] Cart item prepared:", cartItem);
-      console.log(`[Customize] Adding to cart - Base Price: ${basePrice}, Front Cost: ${frontCustomizationCost}, Back Cost: ${backCustomizationCost}, Total: ${totalPrice}`);
-      console.log("[Customize] Front design preview image length:", cartItem.frontDesign.previewImage?.length);
-      console.log("[Customize] Front design preview image start:", cartItem.frontDesign.previewImage?.substring(0, 50));
       
       // Add to cart via context
       return cartItem;
@@ -2386,6 +2383,10 @@ export default function Customize() {
     };
   }, [fabricCanvas, frontDesignMetrics, backDesignMetrics, designSide]);
   // ---- End top ----
+  
+  if (loading) {
+    return <CustomizeSkeleton />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-muted/20">
@@ -2791,8 +2792,10 @@ export default function Customize() {
                 </span>
               ) : templatesError ? (
                 templatesError
-              ) : (
+              ) : templates.length === 0 ? (
                 "No templates found."
+              ) : (
+                "No matching templates."
               )}
             </CommandEmpty>
             <CommandList>

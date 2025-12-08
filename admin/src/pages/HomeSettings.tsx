@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../lib/api';
+import { CardSkeleton, Skeleton } from '@/components/Skeleton';
 
 type Img = { url: string; public_id: string } | null;
 
@@ -10,12 +11,14 @@ export function HomeSettings() {
 
   const [current, setCurrent] = useState<{ homeBackground?: Img; homePoster?: Img; newsItems?: string[] } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         const res = await api.getSettings();
         setCurrent(res.data);
         const firstItem = Array.isArray(res.data?.newsItems) && res.data.newsItems.length
@@ -24,6 +27,8 @@ export function HomeSettings() {
         setNewsContent(firstItem);
       } catch (e: any) {
         setError(e?.message || 'Failed to load settings');
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -76,6 +81,22 @@ export function HomeSettings() {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <section>
+        <Skeleton width="200px" height="32px" style={{ marginBottom: '24px' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+          <CardSkeleton />
+          <CardSkeleton />
+          <div className="card" style={{ padding: 16, gridColumn: '1 / -1' }}>
+            <Skeleton width="150px" height="20px" style={{ marginBottom: '12px' }} />
+            <Skeleton width="100%" height="80px" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section>

@@ -51,11 +51,13 @@ export const Navbar = () => {
           <div className="flex h-16 items-center justify-between px-4 md:px-6">
             {/* Logo - positioned at far left */}
             <Link to="/" className="flex items-center gap-1 sm:gap-2 transition-opacity hover:opacity-80 flex-shrink-0">
-              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary">
-                <span className="text-lg sm:text-xl font-bold text-primary-foreground">T</span>
-              </div>
+              <img 
+                src="https://res.cloudinary.com/dk6rrrwum/image/upload/v1765203908/webIcon_mdqui9.png" 
+                alt="Custom Graphics Logo" 
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
+              />
               <span className="text-lg sm:text-xl font-bold">
-                <span className="text-primary">Custom</span>Tees
+                <span className="text-primary">Custom</span>Graphics
               </span>
             </Link>
 
@@ -153,11 +155,13 @@ export const Navbar = () => {
               {/* Menu header */}
               <div className="flex items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                    <span className="text-lg font-bold text-primary-foreground">T</span>
-                  </div>
+                  <img 
+                    src="https://res.cloudinary.com/dk6rrrwum/image/upload/v1765203908/webIcon_mdqui9.png" 
+                    alt="Custom Graphics Logo" 
+                    className="h-8 w-8 rounded-lg object-cover"
+                  />
                   <span className="text-lg font-bold">
-                    <span className="text-primary">Custom</span>Tees
+                    <span className="text-primary">Custom</span>Graphics
                   </span>
                 </div>
                 <Button

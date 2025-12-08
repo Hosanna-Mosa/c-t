@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '@/lib/api';
+import { ProductCardSkeleton, Skeleton } from '@/components/Skeleton';
 
 type Template = {
   _id: string;
@@ -102,8 +103,15 @@ export function Templates() {
   if (loading) {
     return (
       <section>
-        <h2>Templates</h2>
-        <div className="loading">Loading templates...</div>
+        <Skeleton width="150px" height="32px" style={{ marginBottom: '24px' }} />
+        <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+        </div>
       </section>
     );
   }

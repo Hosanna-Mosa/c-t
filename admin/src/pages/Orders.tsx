@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import api from '@/lib/api'
+import { TableSkeleton, Skeleton } from '@/components/Skeleton'
 
 type TrackingEvent = {
   status?: string
@@ -153,6 +154,7 @@ const PACKAGE_FIELDS: PackageField[] = ['weight', 'length', 'width', 'height'];
 
 export function Orders() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null)
@@ -200,8 +202,14 @@ export function Orders() {
 
   useEffect(() => {
     api.getOrders()
-      .then((res) => setOrders(res.data))
-      .catch((e) => setError(e.message))
+      .then((res) => {
+        setOrders(res.data)
+        setLoading(false)
+      })
+      .catch((e) => {
+        setError(e.message)
+        setLoading(false)
+      })
   }, [])
 
   async function updateStatus(id: string, status: string) {
@@ -422,40 +430,50 @@ export function Orders() {
     <section className="legacy-mode">
       <h2>Orders</h2>
       {error && <div className="error">{error}</div>}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Customer</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((o) => (
-            <tr key={o._id} style={{ cursor: 'pointer' }} onClick={() => handleOrderClick(o._id)}>
-              <td>
-                {o._id.slice(-6)}
-                {loadingOrder === o._id && <span className="loading-spinner" style={{ marginLeft: '8px' }}></span>}
-              </td>
-              <td>{o.user?.name || '—'}</td>
-              <td>₹{((o.total || 0) / 100).toFixed(2)}</td>
-              <td>{o.status}</td>
-              <td onClick={(e) => e.stopPropagation()}>
-                <select disabled={saving === o._id} value={o.status} onChange={(e) => updateStatus(o._id, e.target.value)}>
-                  <option value="placed">placed</option>
-                  <option value="processing">processing</option>
-                  <option value="shipped">shipped</option>
-                  <option value="delivered">delivered</option>
-                  <option value="cancelled">cancelled</option>
-                </select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {orders.length === 0 && !error && <div>No orders yet</div>}
+      
+      {loading ? (
+        <>
+          <Skeleton width="200px" height="24px" style={{ marginBottom: '24px' }} />
+          <TableSkeleton rows={10} columns={5} />
+        </>
+      ) : (
+        <>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o._id} style={{ cursor: 'pointer' }} onClick={() => handleOrderClick(o._id)}>
+                  <td>
+                    {o._id.slice(-6)}
+                    {loadingOrder === o._id && <span className="loading-spinner" style={{ marginLeft: '8px' }}></span>}
+                  </td>
+                  <td>{o.user?.name || '—'}</td>
+                  <td>${((o.total || 0) / 100).toFixed(2)}</td>
+                  <td>{o.status}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <select disabled={saving === o._id} value={o.status} onChange={(e) => updateStatus(o._id, e.target.value)}>
+                      <option value="placed">placed</option>
+                      <option value="processing">processing</option>
+                      <option value="shipped">shipped</option>
+                      <option value="delivered">delivered</option>
+                      <option value="cancelled">cancelled</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {orders.length === 0 && !error && <div>No orders yet</div>}
+        </>
+      )}
 
       {/* Order Details Dialog */}
       {selectedOrder && selectedOrder.user && (
@@ -709,7 +727,7 @@ export function Orders() {
                   </div>
                   <div className="detail-row">
                     <span className="label">Total:</span>
-                    <span className="value">₹{((selectedOrder.total || 0) / 100).toFixed(2)}</span>
+                    <span className="value">${((selectedOrder.total || 0) / 100).toFixed(2)}</span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Payment Method:</span>
@@ -1079,7 +1097,7 @@ export function Orders() {
                       </div>
                       <div className="detail-row">
                         <span className="label">Price:</span>
-                        <span className="value">₹{(item.price / 100).toFixed(2)}</span>
+                        <span className="value">${(item.price / 100).toFixed(2)}</span>
                       </div>
                       {displayColor && (
                         <div className="detail-row">

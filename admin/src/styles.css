@@ -1249,3 +1249,34 @@ input[type="checkbox"] {
 .variant-code {
   color: var(--text-secondary);
 }
+/* Skeleton Loading Styles */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0px,
+    #f8f8f8 40px,
+    #f0f0f0 80px
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    #2a2a2a 0px,
+    #333333 40px,
+    #2a2a2a 80px
+  );
+  background-size: 1000px 100%;
+}

@@ -5,31 +5,10 @@ export const Footer = () => {
   return (
     <footer className="border-t bg-muted/30 mt-20">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {/* Company */}
-          <div>
-            <h3 className="mb-4 text-lg font-semibold">Company</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link to="/about" className="hover:text-foreground transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link to="/careers" className="hover:text-foreground transition-colors">
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link to="/press" className="hover:text-foreground transition-colors">
-                  Press
-                </Link>
-              </li>
-            </ul>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
 
           {/* Support */}
-          <div>
+          <div className="text-left">
             <h3 className="mb-4 text-lg font-semibold">Support</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
@@ -38,20 +17,15 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/faq" className="hover:text-foreground transition-colors">
-                  FAQ
-                </Link>
-              </li>
-              <li>
-                <Link to="/shipping" className="hover:text-foreground transition-colors">
-                  Shipping Info
+                <Link to="/orders" className="hover:text-foreground transition-colors">
+                  Orders
                 </Link>
               </li>
             </ul>
           </div>
 
           {/* Legal */}
-          <div>
+          <div className="text-left">
             <h3 className="mb-4 text-lg font-semibold">Legal</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
@@ -68,9 +42,9 @@ export const Footer = () => {
           </div>
 
           {/* Social */}
-          <div>
+          <div className="col-span-2 md:col-span-1 text-center md:text-left">
             <h3 className="mb-4 text-lg font-semibold">Follow Us</h3>
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-center md:justify-start">
               <a
                 href="https://facebook.com"
                 target="_blank"
@@ -108,7 +82,10 @@ export const Footer = () => {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} CustomTees. All rights reserved.</p>
+          <p className="whitespace-nowrap sm:whitespace-normal">&copy; {new Date().getFullYear()} Custom Graphics. All rights reserved.</p>
+          <p className="mt-2 text-xs sm:text-sm">
+            Developed by <a href="https://www.buildyourvision.in/" target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary transition-colors">Build Your Vision</a>
+          </p>
         </div>
       </div>
     </footer>

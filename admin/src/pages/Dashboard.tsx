@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '@/lib/api'
+import { StatCardSkeleton, TableSkeleton, Skeleton } from '@/components/Skeleton'
 import {
   AreaChart,
   Area,
@@ -34,6 +36,7 @@ interface DashboardStats {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,9 +61,42 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner" style={{ width: 40, height: 40, borderTopColor: 'var(--primary)' }}></div>
-      </div>
+      <section className="dashboard">
+        <div className="section-header">
+          <div>
+            <Skeleton width="250px" height="32px" style={{ marginBottom: '8px' }} />
+            <Skeleton width="400px" height="16px" />
+          </div>
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+
+        {/* Charts Skeleton */}
+        <div className="charts-grid">
+          <div className="card chart-card">
+            <h3><Skeleton width="180px" height="24px" style={{ marginBottom: '20px' }} /></h3>
+            <Skeleton height="300px" />
+          </div>
+          <div className="card chart-card">
+            <h3><Skeleton width="180px" height="24px" style={{ marginBottom: '20px' }} /></h3>
+            <Skeleton height="300px" />
+          </div>
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3><Skeleton width="150px" height="24px" /></h3>
+          </div>
+          <TableSkeleton rows={5} columns={6} />
+        </div>
+      </section>
     )
   }
 
@@ -82,7 +118,7 @@ export function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid">
-        <div className="stat-card">
+        <div className="stat-card clickable" onClick={() => navigate('/orders')}>
           <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
             🛍️
           </div>
@@ -95,7 +131,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card clickable" onClick={() => navigate('/products')}>
           <div className="stat-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
             👕
           </div>
@@ -108,7 +144,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card">
+        <div className="stat-card clickable" onClick={() => navigate('/users')}>
           <div className="stat-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
             👥
           </div>
@@ -129,7 +165,7 @@ export function Dashboard() {
             <div className="stat-label">Total Revenue</div>
             <div className="stat-value">${stats ? stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</div>
             <div className="stat-trend positive">
-              <span>All time</span>
+              <span>Delivered orders</span>
             </div>
           </div>
         </div>
@@ -273,9 +309,16 @@ export function Dashboard() {
           gap: 16px;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .stat-card:hover {
+        .stat-card.clickable {
+          cursor: pointer;
+        }
+        .stat-card.clickable:hover {
           transform: translateY(-4px);
           box-shadow: var(--shadow-md);
+        }
+        .stat-card:not(.clickable):hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow);
         }
         .stat-icon {
           width: 48px;

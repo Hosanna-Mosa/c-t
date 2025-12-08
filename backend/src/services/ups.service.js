@@ -11,7 +11,7 @@ import { uploadFileToDrive } from './googledrive.service.js';
 const UPS_CLIENT_ID = process.env.UPS_CLIENT_ID;
 const UPS_CLIENT_SECRET = process.env.UPS_CLIENT_SECRET;
 const UPS_ACCESS_TOKEN = process.env.UPS_ACCESS_TOKEN; // Optional: if you have a token already
-const UPS_SHIPPER_NUMBER = process.env.UPS_SHIPPER_NUMBER || '1C384J';
+const UPS_SHIPPER_NUMBER = process.env.UPS_SHIPPER_NUMBER;
 const UPS_USE_SANDBOX = process.env.UPS_USE_SANDBOX !== 'false'; // Default to sandbox (true)
 console.log("ups status :",UPS_USE_SANDBOX);
 // UPS API URLs
@@ -35,7 +35,7 @@ const SHIPMENT_URL = UPS_USE_SANDBOX
 
 // Default origin address (can be configured via env vars)
 const DEFAULT_ORIGIN = {
-  name: process.env.UPS_ORIGIN_NAME || 'Custom Tees Store',
+  name: process.env.UPS_ORIGIN_NAME || 'Custom Graphics Store',
   addressLine: process.env.UPS_ORIGIN_ADDRESS || '30  mall drive west',
   city: process.env.UPS_ORIGIN_CITY || 'Jersey City',
   stateProvinceCode: process.env.UPS_ORIGIN_STATE || 'NJ',
@@ -143,6 +143,49 @@ export const generateUPSToken = async () => {
   } catch (error) {
     console.error('[UPS] Token generation error:', error);
     throw new Error(`Failed to generate UPS token: ${error.message}`);
+  }
+};
+
+/**
+ * Exchange Authorization Code for Access Token
+ */
+export const exchangeAuthCode = async (code) => {
+  if (!UPS_CLIENT_ID || !UPS_CLIENT_SECRET) {
+    throw new Error('UPS_CLIENT_ID and UPS_CLIENT_SECRET are required.');
+  }
+
+  console.log('[UPS] Exchanging auth code for token...');
+  const authHeader = 'Basic ' + Buffer.from(`${UPS_CLIENT_ID}:${UPS_CLIENT_SECRET}`).toString('base64');
+
+  const params = new URLSearchParams();
+  params.append('grant_type', 'authorization_code');
+  params.append('code', code);
+  // Ensure this matches what was registered in UPS App
+  params.append('redirect_uri', process.env.UPS_REDIRECT_URI || 'http://localhost:5173/callback');
+
+  try {
+    const response = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: authHeader,
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.access_token) {
+      const errorMsg = data.error_description || data.error || 'Failed to exchange UPS auth code';
+      console.error('[UPS] Code exchange failed:', errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    console.log('[UPS] Successfully exchanged auth code for token');
+    return data;
+  } catch (error) {
+    console.error('[UPS] Code exchange error:', error);
+    throw new Error(`Failed to exchange UPS code: ${error.message}`);
   }
 };
 

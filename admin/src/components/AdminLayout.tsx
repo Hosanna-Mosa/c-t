@@ -6,7 +6,7 @@ export function AdminLayout() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <div className="brand">CustomTees Admin</div>
+        <div className="brand">Custom Graphics</div>
         <nav>
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/products">Custom Products</NavLink>

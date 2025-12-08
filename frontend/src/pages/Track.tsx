@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getTrackingDetails } from '@/lib/api'
 import { Loader2, MapPin, Clock, Package, RefreshCcw } from 'lucide-react'
+import { TrackSkeleton } from "@/components/Skeleton";
 
 type TrackingEvent = {
   status?: string
@@ -188,7 +189,9 @@ export default function Track() {
           </Card>
         )}
 
-        {trackingData ? (
+        {loading && !trackingData ? (
+          <TrackSkeleton />
+        ) : trackingData ? (
           <div className="space-y-6">
             <Card className="border-2">
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -316,7 +319,7 @@ export default function Track() {
               </CardContent>
             </Card>
           </div>
-        ) : !loading ? (
+        ) : (
           <Card className="border-dashed border-2 bg-muted/20">
             <CardContent className="py-10 text-center space-y-3">
               <Package className="h-10 w-10 text-muted-foreground mx-auto" />
@@ -325,7 +328,7 @@ export default function Track() {
               </p>
             </CardContent>
           </Card>
-        ) : null}
+        )}
       </div>
 
       <Footer />

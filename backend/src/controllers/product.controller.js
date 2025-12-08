@@ -6,7 +6,20 @@ import { uploadImage, destroyImage } from '../services/cloudinary.service.js';
  🧩 List All Products
 ============================================================ */
 export const listProducts = async (req, res) => {
-  const products = await Product.find().sort({ createdAt: -1 });
+  const { sortBy = 'createdAt', limit } = req.query;
+  
+  let sortCriteria = { createdAt: -1 };
+  if (sortBy === 'popular' || sortBy === 'soldCount') {
+    sortCriteria = { soldCount: -1, createdAt: -1 }; // Sort by soldCount desc, then by createdAt
+  }
+  
+  let query = Product.find().sort(sortCriteria);
+  
+  if (limit) {
+    query = query.limit(parseInt(limit));
+  }
+  
+  const products = await query;
   res.json({ success: true, data: products });
 };
 

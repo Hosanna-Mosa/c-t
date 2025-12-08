@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer'
 import { myOrders, API_BASE_URL } from '@/lib/api'
 import { Package, ShoppingBag, Clock, CheckCircle, XCircle, Truck, ArrowLeft, CreditCard, MapPin } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { OrdersSkeleton } from "@/components/Skeleton";
 
 const statusConfig = {
   placed: { label: 'Placed', icon: Package, color: 'bg-blue-100 text-blue-800' },
@@ -61,20 +62,7 @@ export default function Orders() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8 flex-1">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading your orders...</p>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    )
+    return <OrdersSkeleton />;
   }
 
   return (
@@ -275,9 +263,7 @@ export default function Orders() {
                                   src={imageSrc} 
                                   alt={item.product?.name || 'Custom Design'} 
                                   className="w-full h-full object-cover"
-                                  onLoad={() => console.log('Image loaded successfully')}
                                   onError={(e) => {
-                                    console.log('Image failed to load:', e);
                                     e.currentTarget.style.display = 'none';
                                     const fallback = e.currentTarget.nextElementSibling as HTMLElement;
                                     if (fallback) fallback.classList.remove('hidden');
@@ -306,12 +292,10 @@ export default function Orders() {
                                   </>
                                 ) : (item.customDesign || item.frontDesign || item.backDesign) ? (
                                   <>
-                                    <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                                      Size: {selectedSize}
-                                    </span>
-                                    <span className="px-2 py-0.5 bg-secondary/50 rounded-full text-xs">
-                                      {selectedColor}
-                                    </span>
+                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground items-center">
+                                      <span className="font-medium text-foreground bg-muted px-2 py-0.5 rounded">Size: {selectedSize}</span>
+                                      <span className="bg-muted px-2 py-0.5 rounded">{selectedColor}</span>
+                                    </div>
                                     {(item.customDesign?.frontDesign || item.frontDesign) && (
                                       <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">
                                         Front Design

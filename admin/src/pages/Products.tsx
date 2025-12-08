@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
+import { ProductCardSkeleton, Skeleton } from '@/components/Skeleton'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || 'http://localhost:8000/api'
 
@@ -385,8 +386,18 @@ export function Products() {
   if (loading) {
     return (
       <section>
-        <h2>Products</h2>
-        <div className="loading">Loading products...</div>
+        <div className="section-header">
+          <Skeleton width="150px" height="32px" />
+          <Skeleton width="120px" height="40px" />
+        </div>
+        <div className="products-grid">
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+        </div>
       </section>
     )
   }
