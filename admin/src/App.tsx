@@ -36,7 +36,7 @@ export default function App() {
           <Route path="dtf-products" element={<DTFProducts />} />
           <Route path="orders" element={<Orders />} />
           <Route path="users" element={<Users />} />
-
+             
           <Route path="coupons" element={<Coupons />} />
           <Route path="templates" element={<Templates />} />
           <Route path="home" element={<HomeSettings />} />

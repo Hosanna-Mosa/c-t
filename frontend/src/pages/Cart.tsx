@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
@@ -8,9 +8,10 @@ import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
+import { CartSkeleton } from "@/components/Skeleton";
 
 export default function Cart() {
-  const { cartItems, loading, updateItemQuantity, removeItemFromCart, clearCartItems } = useCart();
+  const { cartItems, loading, updateItemQuantity, removeItemFromCart } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -21,8 +22,7 @@ export default function Cart() {
   }, [isAuthenticated, navigate]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.totalPrice * item.quantity), 0);
-  const shipping = subtotal > 50 ? 0 : 5.99;
-  const total = subtotal + shipping;
+
 
   const handleRemoveItem = (itemId: string) => {
     removeItemFromCart(itemId);
@@ -37,18 +37,7 @@ export default function Cart() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="container mx-auto px-4 py-20 flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading cart...</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
+    return <CartSkeleton />;
   }
 
   if (cartItems.length === 0) {
@@ -241,29 +230,28 @@ export default function Cart() {
                 </h2>
 
                 <div className="space-y-3 border-b pb-4">
-                  <div className="flex justify-between items-center text-sm sm:text-base">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-semibold text-foreground">${subtotal.toFixed(2)}</span>
+                  {/* Items List */}
+                  <div className="space-y-2">
+                    {cartItems.map((item) => (
+                      <div key={item._id} className="flex justify-between items-start text-sm">
+                        <div className="flex-1 pr-2">
+                          <p className="font-medium text-foreground line-clamp-1">{item.productName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Qty: {item.quantity} × ${item.totalPrice.toFixed(2)}
+                          </p>
+                        </div>
+                        <span className="font-semibold text-foreground whitespace-nowrap">
+                          ${(item.totalPrice * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between items-center text-sm sm:text-base">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span className={`font-semibold ${shipping === 0 ? 'text-green-600' : 'text-foreground'}`}>
-                      {shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`}
-                    </span>
-                  </div>
-                  {subtotal < 50 && (
-                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs text-amber-700">
-                        🎁 Add ${(50 - subtotal).toFixed(2)} more for free shipping!
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-base sm:text-lg font-bold text-foreground">Total</span>
                   <span className="text-xl sm:text-2xl font-bold text-primary">
-                    ${total.toFixed(2)}
+                    ${subtotal.toFixed(2)}
                   </span>
                 </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/lib/api'
+import { ProductCardSkeleton, Skeleton } from '@/components/Skeleton'
 
 type DTFProduct = {
   _id: string
@@ -173,9 +174,23 @@ export function DTFProducts() {
 
   if (loading) {
     return (
-      <section>
-        <h2>DTF Products</h2>
-        <div className="loading">Loading DTF catalog...</div>
+      <section className="dtf-experience">
+        <div className="dtf-heading-row">
+          <div>
+            <Skeleton width="180px" height="16px" style={{ marginBottom: '8px' }} />
+            <Skeleton width="200px" height="32px" style={{ marginBottom: '8px' }} />
+            <Skeleton width="300px" height="16px" />
+          </div>
+          <Skeleton width="120px" height="40px" />
+        </div>
+        <div className="dtf-showcase-grid">
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+        </div>
       </section>
     )
   }

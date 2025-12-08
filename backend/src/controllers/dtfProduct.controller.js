@@ -1,8 +1,21 @@
 import DTFProduct from '../models/DTFProduct.js';
 import { uploadImage, destroyImage } from '../services/cloudinary.service.js';
 
-export const listDTFProducts = async (_req, res) => {
-  const products = await DTFProduct.find({ isActive: true }).sort({ createdAt: -1 });
+export const listDTFProducts = async (req, res) => {
+  const { sortBy = 'createdAt', limit } = req.query;
+  
+  let sortCriteria = { createdAt: -1 };
+  if (sortBy === 'popular' || sortBy === 'soldCount') {
+    sortCriteria = { soldCount: -1, createdAt: -1 };
+  }
+  
+  let query = DTFProduct.find({ isActive: true }).sort(sortCriteria);
+  
+  if (limit) {
+    query = query.limit(parseInt(limit));
+  }
+  
+  const products = await query;
   res.json({ success: true, data: products });
 };
 

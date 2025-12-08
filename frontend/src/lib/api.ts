@@ -1,7 +1,6 @@
 const renderUrl = 'https://api2.brelis.in/api';
-const local = "http://localhost:8000/api";
-
-const BASE = false ? local : renderUrl;
+// const local = "http://localhost:80i00/api";
+const BASE = true ? (import.meta as any).env?.VITE_API_BASE : renderUrl;
 export const API_BASE_URL = BASE;
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -29,18 +28,30 @@ async function request(path: string, opts: { method?: Method; body?: any; isForm
   return data;
 }
 
-export const fetchProducts = async () => {
-  const res = await request('/products');
+export const fetchProducts = async (sortBy: 'createdAt' | 'popular' = 'createdAt', limit?: number) => {
+  const params = new URLSearchParams();
+  params.append('sortBy', sortBy);
+  if (limit) params.append('limit', limit.toString());
+  
+  const res = await request(`/products?${params.toString()}`);
   return (res as any).data;
 };
 
-export const fetchCasualProducts = async () => {
-  const res = await request('/casual-products');
+export const fetchCasualProducts = async (sortBy: 'createdAt' | 'popular' = 'createdAt', limit?: number) => {
+  const params = new URLSearchParams();
+  params.append('sortBy', sortBy);
+  if (limit) params.append('limit', limit.toString());
+  
+  const res = await request(`/casual-products?${params.toString()}`);
   return (res as any).data;
 };
 
-export const fetchDTFProducts = async () => {
-  const res = await request('/dtf-products');
+export const fetchDTFProducts = async (sortBy: 'createdAt' | 'popular' = 'createdAt', limit?: number) => {
+  const params = new URLSearchParams();
+  params.append('sortBy', sortBy);
+  if (limit) params.append('limit', limit.toString());
+  
+  const res = await request(`/dtf-products?${params.toString()}`);
   return (res as any).data;
 };
 
@@ -221,4 +232,10 @@ export const getOrderTrackingDetails = async (orderId: string) => {
 
 export default { request };
 
+
+
+// Contact Form
+export const submitContactForm = async (data: { name: string; email: string; phone?: string; subject: string; message: string }) => {
+  return request("/contact", { method: "POST", body: data });
+};
 

@@ -22,6 +22,10 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile.tsx";
 import Track from "./pages/Track";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Contact from "./pages/Contact";
+import Callback from "./pages/Callback";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +56,10 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/track" element={<Track />} />
             <Route path="/track/:trackingNumber" element={<Track />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/callback" element={<Callback />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

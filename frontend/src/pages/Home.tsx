@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Truck, Clock, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSettings, fetchProducts, fetchCasualProducts, fetchDTFProducts } from "@/lib/api";
+import { HeroSkeleton, ProductCardSkeleton } from "@/components/Skeleton";
 
 type RawNewsItem =
   | string
@@ -27,20 +28,32 @@ export default function Home() {
   const [casualProducts, setCasualProducts] = useState<any[]>([]);
   const [dtfProducts, setDtfProducts] = useState<any[]>([]);
   const [shouldMarquee, setShouldMarquee] = useState(false);
+  const [loading, setLoading] = useState(true);
   const tickerContainerRef = useRef<HTMLDivElement | null>(null);
   const messageRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    getSettings().then(setSettings).catch(() => { });
-    fetchProducts()
-      .then((data) => setProducts(data)) // Get all products
-      .catch(() => setProducts([]));
-    fetchCasualProducts()
-      .then((data) => setCasualProducts(data)) // Get all casual products
-      .catch(() => setCasualProducts([]));
-    fetchDTFProducts()
-      .then((data) => setDtfProducts(data)) // Get all DTF products
-      .catch(() => setDtfProducts([]));
+    const loadData = async () => {
+      try {
+        const [settingsData, productsData, casualData, dtfData] = await Promise.all([
+          getSettings().catch(() => null),
+          fetchProducts('popular').catch(() => []),
+          fetchCasualProducts('popular').catch(() => []),
+          fetchDTFProducts('popular').catch(() => [])
+        ]);
+        
+        if (settingsData) setSettings(settingsData);
+        setProducts(productsData);
+        setCasualProducts(casualData);
+        setDtfProducts(dtfData);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
   }, []);
 
   const tickerItems = useMemo(
@@ -120,40 +133,6 @@ export default function Home() {
     }
   `;
 
-  const benefits = [
-    {
-      icon: Truck,
-      title: "Free Shipping",
-      description: "2-Week Delivery on all orders",
-    },
-    {
-      icon: Clock,
-      title: "Fast Turnaround",
-      description: "Rush options available",
-    },
-  ];
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Event Coordinator",
-      content: "Amazing quality and fast delivery! Our team t-shirts turned out perfect.",
-      rating: 5,
-    },
-    {
-      name: "Mike Chen",
-      role: "Business Owner",
-      content: "The design tool is so easy to use. Created professional merch in minutes.",
-      rating: 5,
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Fundraiser Organizer",
-      content: "Great customer service and the final products exceeded expectations!",
-      rating: 5,
-    },
-  ];
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -189,74 +168,80 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section
-        className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent/10"
-        style={settings?.homeBackground?.url ? { backgroundImage: `url(${settings.homeBackground.url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-      >
+      {loading ? (
         <div className="container mx-auto px-4 py-12 sm:py-20 lg:py-32">
-          <div className="grid gap-8 lg:grid-cols-2 lg:gap-8 items-center">
-            <div className="space-y-6 sm:space-y-8">
-              <div className="space-y-4">
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl xl:text-6xl">
-                  Connect With{" "}
-                  <span className="text-primary">Custom T-Shirts</span>
-                </h1>
-                <p className="text-lg sm:text-xl text-muted-foreground max-w-xl">
-                  Add your company logo to custom t-shirts and promo products.
-                  Fast, easy, and affordable.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <Link to="/customize">
-                  <Button size="lg" className="gradient-hero shadow-primary hover:shadow-lg transition-all w-full sm:w-auto">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link to="/products">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                    View Products
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-4 pt-6 sm:pt-8 border-t">
-                <div className="text-center sm:text-left">
-                  <div className="text-2xl sm:text-3xl font-bold text-primary">10M+</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">Happy Customers</div>
+          <HeroSkeleton />
+        </div>
+      ) : (
+        <section
+          className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent/10"
+          style={settings?.homeBackground?.url ? { backgroundImage: `url(${settings.homeBackground.url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        >
+          <div className="container mx-auto px-4 py-12 sm:py-20 lg:py-32">
+            <div className="grid gap-8 lg:grid-cols-2 lg:gap-8 items-center">
+              <div className="space-y-6 sm:space-y-8">
+                <div className="space-y-4">
+                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl xl:text-6xl">
+                    Connect With{" "}
+                    <span className="text-primary">Custom T-Shirts</span>
+                  </h1>
+                  <p className="text-lg sm:text-xl text-muted-foreground max-w-xl">
+                    Add your company logo to custom t-shirts and promo products.
+                    Fast, easy, and affordable.
+                  </p>
                 </div>
-                <div className="text-center sm:text-left">
-                  <div className="text-2xl sm:text-3xl font-bold text-primary">24/7</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">Support</div>
+
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <Link to="/customize">
+                    <Button size="lg" className="gradient-hero shadow-primary hover:shadow-lg transition-all w-full sm:w-auto">
+                      Get Started
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Link to="/products">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                      View Products
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 pt-6 sm:pt-8 border-t">
+                  <div className="text-center sm:text-left">
+                    <div className="text-2xl sm:text-3xl font-bold text-primary">10M+</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Happy Customers</div>
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <div className="text-2xl sm:text-3xl font-bold text-primary">24/7</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Support</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Hero Image */}
-            <div className="relative order-first lg:order-last">
-              <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-2xl">
-                <img
-                  src={settings?.homePoster?.url || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=800&fit=crop"}
-                  alt="Custom t-shirts"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              {/* Floating badge */}
-              <div className="absolute -right-2 sm:-right-4 top-4 sm:top-8 rounded-xl bg-background p-3 sm:p-4 shadow-lg border">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-primary text-primary" />
-                  <div>
-                    <div className="font-bold text-sm sm:text-base">4.9/5</div>
-                    <div className="text-xs text-muted-foreground">50k+ Reviews</div>
+              {/* Hero Image */}
+              <div className="relative order-first lg:order-last">
+                <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-2xl">
+                  <img
+                    src={settings?.homePoster?.url || "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=800&fit=crop"}
+                    alt="Custom t-shirts"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                {/* Floating badge */}
+                <div className="absolute -right-2 sm:-right-4 top-4 sm:top-8 rounded-xl bg-background p-3 sm:p-4 shadow-lg border">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-primary text-primary" />
+                    <div>
+                      <div className="font-bold text-sm sm:text-base">4.9/5</div>
+                      <div className="text-xs text-muted-foreground">50k+ Reviews</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="py-12 sm:py-20">
@@ -289,7 +274,13 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-            {products.length > 0 ? (
+            {loading ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[200px] sm:w-[250px]">
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            ) : products.length > 0 ? (
               products.map((product) => (
                 <Link key={product._id} to={`/customize`} state={{ productId: product._id }}>
                   <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
@@ -351,7 +342,13 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-            {casualProducts.length > 0 ? (
+            {loading ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[200px] sm:w-[250px]">
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            ) : casualProducts.length > 0 ? (
               casualProducts.map((product) => (
                 <Link key={product._id} to={`/products`}>
                   <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">
@@ -400,7 +397,13 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-            {dtfProducts.length > 0 ? (
+            {loading ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[200px] sm:w-[250px]">
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            ) : dtfProducts.length > 0 ? (
               dtfProducts.map((product) => (
                 <Link key={product._id} to={`/dtf`}>
                   <Card className="group hover-lift cursor-pointer overflow-hidden flex-shrink-0 w-[200px] sm:w-[250px] snap-start">

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchCasualProducts } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { ProductsPageSkeleton } from "@/components/Skeleton";
 
 type CasualProduct = {
   _id: string;
@@ -106,6 +107,16 @@ export default function Products() {
     return products.filter((product) => product.category === selectedCategory);
   }, [products, selectedCategory]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/10">
+        <Navbar />
+        <ProductsPageSkeleton />
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/10">
       <Navbar />
@@ -137,21 +148,7 @@ export default function Products() {
           ))}
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden border-2 border-dashed border-muted-foreground/10">
-                <div className="aspect-square animate-pulse bg-muted/60" />
-                <CardContent className="space-y-2 p-4">
-                  <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-                  <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                  <div className="h-9 w-full animate-pulse rounded bg-muted" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-6 text-center text-destructive">
             {error}
           </div>

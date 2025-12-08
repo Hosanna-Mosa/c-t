@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
+import { TableSkeleton, Skeleton } from '@/components/Skeleton'
 
 type Coupon = {
   _id: string
@@ -190,8 +191,13 @@ export function Coupons() {
   if (loading) {
     return (
       <section>
-        <h2>Coupons</h2>
-        <div className="loading">Loading coupons...</div>
+        <div className="section-header">
+          <Skeleton width="150px" height="32px" />
+          <Skeleton width="120px" height="40px" />
+        </div>
+        <div className="card">
+          <TableSkeleton rows={8} columns={7} />
+        </div>
       </section>
     )
   }

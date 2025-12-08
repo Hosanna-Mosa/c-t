@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/lib/api'
+import { ProductCardSkeleton, Skeleton } from '@/components/Skeleton'
 
 type CasualProductImage = {
   url: string
@@ -270,8 +271,18 @@ export function CasualProducts() {
   if (loading) {
     return (
       <section>
-        <h2>Casual Products</h2>
-        <div className="loading">Loading casual products...</div>
+        <div className="section-header">
+          <Skeleton width="200px" height="32px" />
+          <Skeleton width="120px" height="40px" />
+        </div>
+        <div className="products-grid">
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
+        </div>
       </section>
     )
   }

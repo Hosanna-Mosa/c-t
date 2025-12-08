@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { addAddress as apiAdd, updateAddress as apiUpdate, deleteAddress as apiDelete, getMe } from '@/lib/api';
 import { toast } from 'sonner';
+import { ProfileSkeleton } from "@/components/Skeleton";
 
 type Address = {
   _id?: string;
@@ -28,10 +29,18 @@ export default function Profile() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [form, setForm] = useState<Address>({ fullName: '', phone: '', line1: '', line2: '', city: '', state: '', postalCode: '', country: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
-    getMe().then((res: any) => setAddresses(res.data?.addresses || [])).catch(() => { });
+    getMe()
+      .then((res: any) => setAddresses(res.data?.addresses || []))
+      .catch(() => { })
+      .finally(() => setInitialLoading(false));
   }, []);
+
+  if (initialLoading) {
+    return <ProfileSkeleton />;
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

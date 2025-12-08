@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const STORE_NAME = process.env.STORE_NAME || 'CustomTees';
+const STORE_NAME =  'Custom Graphics';
 const FRONTEND_BASE_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 const SUPPORT_EMAIL = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 const TRACKING_STATUS_COPY = {
@@ -79,13 +79,14 @@ export const generateVerificationCode = () => {
 export const sendVerificationCode = async (email, code) => {
   console.log(`[EmailService] Sending verification code to ${email}`);
   try {
+    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics';
     const mailOptions = {
       to: email,
-      subject: 'Password Reset Verification Code - CustomTees',
+      subject: 'Password Reset Verification Code - Custom Graphics',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You have requested to reset your password for your CustomTees account.</p>
+          <p>You have requested to reset your password for your Custom Graphics account.</p>
           <p>Your verification code is:</p>
           <div style="background-color: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
             <h1 style="color: #007bff; font-size: 32px; margin: 0; letter-spacing: 5px;">${code}</h1>
@@ -93,7 +94,7 @@ export const sendVerificationCode = async (email, code) => {
           <p>This code will expire in 10 minutes.</p>
           <p>If you didn't request this password reset, please ignore this email.</p>
           <hr style="margin: 30px 0;">
-          <p style="color: #666; font-size: 12px;">© 2025 CustomTees. All rights reserved.</p>
+          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics. All rights reserved.</p>
         </div>
       `,
     };
@@ -109,16 +110,17 @@ export const sendVerificationCode = async (email, code) => {
 export const sendPasswordResetSuccess = async (email) => {
   console.log(`[EmailService] Sending password reset success to ${email}`);
   try {
+    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics';
     const mailOptions = {
       to: email,
-      subject: 'Password Reset Successful - CustomTees',
+      subject: 'Password Reset Successful - Custom Graphics',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #28a745;">Password Reset Successful</h2>
-          <p>Your password has been successfully reset for your CustomTees account.</p>
+          <p>Your password has been successfully reset for your Custom Graphics account.</p>
           <p>If you didn't make this change, please contact our support team immediately.</p>
           <hr style="margin: 30px 0;">
-          <p style="color: #666; font-size: 12px;">© 2025 CustomTees. All rights reserved.</p>
+          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics. All rights reserved.</p>
         </div>
       `,
     };
@@ -288,6 +290,61 @@ export const sendOrderConfirmationEmail = async ({ email, name, orderId, total, 
   return sendEmail({
     to: email,
     subject: `${STORE_NAME} Order Confirmation #${orderId.slice(-6)}`,
+    html,
+  });
+};
+
+/**
+ * Send contact form submission to admin
+ */
+export const sendContactFormEmail = async ({ name, email, phone, subject, message }) => {
+  console.log(`[EmailService] Sending contact form submission from ${email} to admin`);
+  
+  const adminEmail = process.env.ADMIN_EMAIL;
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111;">
+      <h2 style="color: #111; margin-bottom: 8px;">New Contact Form Submission</h2>
+      
+      <div style="background:#f9f9f9;border-radius:12px;padding:20px;margin:20px 0;">
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:12px;text-transform:uppercase;color:#666;">From</div>
+          <div style="font-size:16px;font-weight:600;margin-top:4px;">${name}</div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:12px;text-transform:uppercase;color:#666;">Email</div>
+          <div style="font-size:14px;margin-top:4px;">
+            <a href="mailto:${email}" style="color:#007bff;text-decoration:none;">${email}</a>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:12px;text-transform:uppercase;color:#666;">Phone</div>
+          <div style="font-size:14px;margin-top:4px;">${phone}</div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:12px;text-transform:uppercase;color:#666;">Subject</div>
+          <div style="font-size:16px;font-weight:600;margin-top:4px;">${subject}</div>
+        </div>
+        
+        <div style="border-top:1px solid #ddd;padding-top:16px;margin-top:16px;">
+          <div style="font-size:12px;text-transform:uppercase;color:#666;margin-bottom:8px;">Message</div>
+          <div style="font-size:14px;line-height:1.6;white-space:pre-wrap;">${message}</div>
+        </div>
+      </div>
+      
+      <p style="font-size:12px;color:#666;">
+        This message was sent from the ${STORE_NAME} contact form.
+      </p>
+    </div>
+  `;
+
+  return sendEmail({
+    to: adminEmail,
+    replyTo: email, // Allow admin to reply directly to the customer
+    subject: `Contact Form: ${subject}`,
     html,
   });
 };

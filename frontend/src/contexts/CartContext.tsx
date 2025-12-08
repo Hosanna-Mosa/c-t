@@ -38,6 +38,18 @@ interface CartItem {
     fileName?: string;
     dataUrl?: string;
   };
+  customDesign?: {
+    frontDesign?: {
+      previewImage?: string;
+      designData?: any;
+    };
+    backDesign?: {
+      previewImage?: string;
+      designData?: any;
+    };
+    selectedColor?: string;
+    selectedSize?: string;
+  };
 }
 
 interface CartContextType {

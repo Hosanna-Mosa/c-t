@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchDTFProducts } from "@/lib/api";
+import { ProductsPageSkeleton } from "@/components/Skeleton";
 
 type DTFProduct = {
   _id: string;
@@ -39,6 +40,16 @@ export default function DTF() {
     load();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/10">
+        <Navbar />
+        <ProductsPageSkeleton />
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/10">
       <Navbar />
@@ -55,21 +66,7 @@ export default function DTF() {
           </p>
         </header>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden border-2 border-dashed border-muted-foreground/20">
-                <div className="aspect-square animate-pulse bg-muted/50" />
-                <CardContent className="space-y-3 p-4">
-                  <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
-                  <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                  <div className="h-9 w-full animate-pulse rounded bg-muted" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive">
             {error}
           </div>

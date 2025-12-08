@@ -4,7 +4,7 @@ import User from '../src/models/User.js';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://sunandvemavarapu_db_user:f0bvswyEV5YiTbup@custom-tees.2oo4bft.mongodb.net/';
+const MONGODB_URI = process.env.MONGODB_URI ;
 
 async function fixAddressCountries() {
   try {

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI || 'mongodb+srv://sunandvemavarapu_db_user:f0bvswyEV5YiTbup@custom-tees.2oo4bft.mongodb.net/';
+  const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.error('MONGODB_URI missing');
     process.exit(1);

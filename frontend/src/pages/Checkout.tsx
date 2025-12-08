@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/hooks/use-auth'
 import { ShoppingBag, CreditCard, Truck, Tag, X, Clock } from 'lucide-react'
 import { toast } from 'sonner'
+import { CheckoutSkeleton } from "@/components/Skeleton";
 
 type AppliedCoupon = {
   code: string
@@ -77,7 +78,6 @@ export default function Checkout() {
       }
     } catch (error) {
       // User might not be logged in, that's okay
-      console.error('Failed to load addresses:', error)
     }
   }
 
@@ -122,7 +122,7 @@ export default function Checkout() {
         setSelectedAddressId(addresses[0]._id)
       }
     } catch (error) {
-      console.error('Failed to refresh addresses:', error)
+      // Ignore error, addresses will be refreshed on next load
     }
     // The shipping calculation useEffect will automatically trigger when userAddresses/selectedAddressId updates
   }
@@ -172,7 +172,6 @@ export default function Checkout() {
       estimatedWeight
     )
       .then((result) => {
-        console.log('[Checkout] Shipping options response:', result) // Debug log
         const options = result?.options || []
         setShippingOptions(options)
         setShippingError(null)
@@ -202,7 +201,6 @@ export default function Checkout() {
         }
       })
       .catch((error) => {
-        console.error('Shipping options error:', error)
         
         // Extract the actual error message from the API response
         let errorMessage = 'Unable to calculate shipping. Please contact support.'
@@ -449,18 +447,7 @@ export default function Checkout() {
   }
 
   if (cartLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="container mx-auto p-6 flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading checkout...</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    )
+    return <CheckoutSkeleton />;
   }
 
   if (cartItems.length === 0) {
@@ -780,7 +767,14 @@ export default function Checkout() {
                   
                   <Button 
                     onClick={placeOrder} 
-                    disabled={loading || cartItems.length === 0 || !selectedAddressId}
+                    disabled={
+                      loading || 
+                      cartItems.length === 0 || 
+                      !selectedAddressId || 
+                      loadingShipping || 
+                      !selectedShippingOption ||
+                      shippingError !== null
+                    }
                     className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold gradient-hero shadow-lg hover:shadow-xl transition-all duration-200"
                     size="lg"
                   >

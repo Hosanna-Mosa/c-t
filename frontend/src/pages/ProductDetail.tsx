@@ -11,6 +11,7 @@ import { fetchCasualProductBySlug } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { ProductDetailSkeleton } from "@/components/Skeleton";
 
 type ProductImage = {
   url: string;
@@ -179,10 +180,7 @@ export default function ProductDetail() {
 
       <section className="container mx-auto flex-1 px-4 py-4 md:py-6">
         {loading ? (
-          <div className="mx-auto max-w-5xl rounded-2xl border border-dashed border-muted p-12 text-center">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-muted border-t-primary" />
-            <p className="mt-4 text-sm text-muted-foreground">Loading product details...</p>
-          </div>
+          <ProductDetailSkeleton />
         ) : error ? (
           <div className="mx-auto max-w-3xl rounded-xl border border-destructive/20 bg-destructive/10 p-8 text-center text-destructive">
             {error}

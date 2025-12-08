@@ -23,9 +23,9 @@ export const getStats = async (req, res) => {
 
     const totalProducts = products + casualProducts + dtfProducts;
 
-    // Total Revenue
+    // Total Revenue (Only from delivered orders)
     const revenueAgg = await Order.aggregate([
-      { $match: { status: { $ne: 'cancelled' } } },
+      { $match: { status: 'delivered' } },
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
     const totalRevenue = revenueAgg.length > 0 ? revenueAgg[0].total / 100 : 0;

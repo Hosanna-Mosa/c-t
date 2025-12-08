@@ -272,7 +272,7 @@ export const createOrderFromCart = async (req, res) => {
           : undefined,
       });
 
-      const redirectBase = process.env.CLIENT_BASE_URL || 'http://localhost:8080';
+      const redirectBase = process.env.FRONTEND_URL || 'http://localhost:8080';
       const redirectUrl = `${redirectBase.replace(/\/$/, '')}/payments/square-result?sessionId=${checkoutSession._id}`;
 
       try {
