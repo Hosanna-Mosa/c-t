@@ -35,7 +35,7 @@ const SHIPMENT_URL = UPS_USE_SANDBOX
 
 // Default origin address (can be configured via env vars)
 const DEFAULT_ORIGIN = {
-  name: process.env.UPS_ORIGIN_NAME || 'Custom Graphics Store',
+  name: process.env.UPS_ORIGIN_NAME || 'Custom Graphics4u Store',
   addressLine: process.env.UPS_ORIGIN_ADDRESS || '30  mall drive west',
   city: process.env.UPS_ORIGIN_CITY || 'Jersey City',
   stateProvinceCode: process.env.UPS_ORIGIN_STATE || 'NJ',

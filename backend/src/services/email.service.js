@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const STORE_NAME =  'Custom Graphics';
+const STORE_NAME =  'Custom Graphics4u';
 const FRONTEND_BASE_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 const SUPPORT_EMAIL = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 const TRACKING_STATUS_COPY = {
@@ -79,14 +79,14 @@ export const generateVerificationCode = () => {
 export const sendVerificationCode = async (email, code) => {
   console.log(`[EmailService] Sending verification code to ${email}`);
   try {
-    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics';
+    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics4u';
     const mailOptions = {
       to: email,
-      subject: 'Password Reset Verification Code - Custom Graphics',
+      subject: 'Password Reset Verification Code - Custom Graphics4u',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You have requested to reset your password for your Custom Graphics account.</p>
+          <p>You have requested to reset your password for your Custom Graphics4u account.</p>
           <p>Your verification code is:</p>
           <div style="background-color: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
             <h1 style="color: #007bff; font-size: 32px; margin: 0; letter-spacing: 5px;">${code}</h1>
@@ -94,7 +94,7 @@ export const sendVerificationCode = async (email, code) => {
           <p>This code will expire in 10 minutes.</p>
           <p>If you didn't request this password reset, please ignore this email.</p>
           <hr style="margin: 30px 0;">
-          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics. All rights reserved.</p>
+          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics4u. All rights reserved.</p>
         </div>
       `,
     };
@@ -110,17 +110,17 @@ export const sendVerificationCode = async (email, code) => {
 export const sendPasswordResetSuccess = async (email) => {
   console.log(`[EmailService] Sending password reset success to ${email}`);
   try {
-    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics';
+    const STORE_NAME = process.env.STORE_NAME || 'Custom Graphics4u';
     const mailOptions = {
       to: email,
-      subject: 'Password Reset Successful - Custom Graphics',
+      subject: 'Password Reset Successful - Custom Graphics4u',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #28a745;">Password Reset Successful</h2>
-          <p>Your password has been successfully reset for your Custom Graphics account.</p>
+          <p>Your password has been successfully reset for your Custom Graphics4u account.</p>
           <p>If you didn't make this change, please contact our support team immediately.</p>
           <hr style="margin: 30px 0;">
-          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics. All rights reserved.</p>
+          <p style="color: #666; font-size: 12px;">© 2025 Custom Graphics4u. All rights reserved.</p>
         </div>
       `,
     };

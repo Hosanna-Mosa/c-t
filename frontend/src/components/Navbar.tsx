@@ -35,11 +35,11 @@ export const Navbar = () => {
             </div>
             <div className="flex items-center gap-4">
               <a 
-                href="tel:8552712660" 
+                href="tel:5109290011" 
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <Phone className="h-4 w-4" />
-                <span className="hidden sm:inline">855-271-2660</span>
+                <span className="hidden sm:inline">510-929-0011</span>
                 <span className="sm:hidden text-xs">Call</span>
               </a>
             </div>
@@ -53,11 +53,11 @@ export const Navbar = () => {
             <Link to="/" className="flex items-center gap-1 sm:gap-2 transition-opacity hover:opacity-80 flex-shrink-0">
               <img 
                 src="https://res.cloudinary.com/dk6rrrwum/image/upload/v1765203908/webIcon_mdqui9.png" 
-                alt="Custom Graphics Logo" 
+                alt="Custom Graphics4u Logo" 
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover"
               />
               <span className="text-lg sm:text-xl font-bold">
-                <span className="text-primary">Custom</span>Graphics
+                <span className="text-primary">Custom</span>Graphics4u
               </span>
             </Link>
 
@@ -157,11 +157,11 @@ export const Navbar = () => {
                 <div className="flex items-center gap-2">
                   <img 
                     src="https://res.cloudinary.com/dk6rrrwum/image/upload/v1765203908/webIcon_mdqui9.png" 
-                    alt="Custom Graphics Logo" 
+                    alt="Custom Graphics4u Logo" 
                     className="h-8 w-8 rounded-lg object-cover"
                   />
                   <span className="text-lg font-bold">
-                    <span className="text-primary">Custom</span>Graphics
+                    <span className="text-primary">Custom</span>Graphics4u
                   </span>
                 </div>
                 <Button
