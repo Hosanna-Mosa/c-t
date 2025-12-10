@@ -84,7 +84,7 @@ export default function Contact() {
                         href="mailto:Raj@customgraphics.com" 
                         className="text-sm text-muted-foreground hover:text-primary transition-colors"
                       >
-                        Raj@customgraphics.com
+                        info@customgraphics.com
                       </a>
                     </div>
                   </div>
@@ -94,10 +94,10 @@ export default function Contact() {
                     <div>
                       <p className="font-medium">Phone</p>
                       <a 
-                        href="tel:8552712680" 
+                        href="tel:5109290011" 
                         className="text-sm text-muted-foreground hover:text-primary transition-colors"
                       >
-                        855-271-2680
+                        510-929-0011
                       </a>
                     </div>
                   </div>
@@ -107,7 +107,7 @@ export default function Contact() {
                     <div>
                       <p className="font-medium">Address</p>
                       <p className="text-sm text-muted-foreground">
-                        Custom Graphics Store
+                        Custom Graphics4u Store
                       </p>
                       <p className="text-sm text-muted-foreground">
                         30 Mall Drive West

@@ -82,7 +82,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p className="whitespace-nowrap sm:whitespace-normal">&copy; {new Date().getFullYear()} Custom Graphics. All rights reserved.</p>
+          <p className="whitespace-nowrap sm:whitespace-normal">&copy; {new Date().getFullYear()} Custom Graphics4u. All rights reserved.</p>
           <p className="mt-2 text-xs sm:text-sm">
             Developed by <a href="https://www.buildyourvision.in/" target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary transition-colors">Build Your Vision</a>
           </p>

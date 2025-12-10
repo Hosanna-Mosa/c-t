@@ -116,7 +116,7 @@ export default function Privacy() {
               </p>
               <div className="mt-2 text-muted-foreground">
                 <p>Email: Raj@customgraphics.com</p>
-                <p>Phone: 855-271-2680</p>
+                <p>Phone: 510-929-0011</p>
               </div>
             </section>
           </CardContent>
