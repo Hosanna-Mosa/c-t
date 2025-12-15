@@ -46,7 +46,7 @@ export const Footer = () => {
             <h3 className="mb-4 text-lg font-semibold">Follow Us</h3>
             <div className="flex gap-3 justify-center md:justify-start">
               <a
-                href="https://facebook.com"
+                href="https://www.facebook.com/share/17UVzKzPKg/?mibextid=wwXIfr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
@@ -54,7 +54,7 @@ export const Footer = () => {
                 <Facebook className="h-5 w-5" />
               </a>
               <a
-                href="https://twitter.com"
+                href="https://x.com/4customgraphics?s=21"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
@@ -62,20 +62,12 @@ export const Footer = () => {
                 <Twitter className="h-5 w-5" />
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/customtees4nj?igsh=MTl3a2c1andzbDViZw%3D%3D&utm_source=qr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
               >
                 <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-              >
-                <Youtube className="h-5 w-5" />
               </a>
             </div>
           </div>
