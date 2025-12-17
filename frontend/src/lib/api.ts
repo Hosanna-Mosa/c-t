@@ -1,6 +1,6 @@
 const renderUrl = 'https://api2.brelis.in/api';
 const local = "http://localhost:80i00/api";
-const BASE = false ? (import.meta as any).env?.VITE_API_BASE : renderUrl;
+const BASE = true ? (import.meta as any).env?.VITE_API_BASE : renderUrl;
 export const API_BASE_URL = BASE;
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
