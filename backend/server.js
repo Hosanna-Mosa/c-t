@@ -44,6 +44,8 @@ configureCloudinary();
 // Middlewares
 app.use(cors({
     origin: [
+        "https://customgraphics4u.com",
+        "https://admin.customgraphics4u.com",
         "https://customtees-admin.onrender.com",
         "https://c-t-front-gltq.onrender.com",
         "http://localhost:8080",
