@@ -26,6 +26,16 @@ type Order = {
   user?: any;
   items?: any[];
   shippingAddress?: any;
+  deliveryMethod?: 'shipping' | 'pickup';
+  pickupDetails?: {
+    name?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
   paymentMethod?: string;
   createdAt?: string;
   trackingNumber?: string;
@@ -174,12 +184,19 @@ export function Orders() {
   const fileBase = typeof apiBase === 'string' ? apiBase.replace(/\/api$/, '') : 'http://localhost:8000'
   const storefrontBase = (import.meta as any).env?.VITE_STOREFRONT_URL || 'http://localhost:5173'
   const storefrontUrl = typeof storefrontBase === 'string' ? storefrontBase.replace(/\/$/, '') : 'http://localhost:5173'
-  const hasStoredLabel = Boolean(selectedOrder?.trackingNumber || selectedOrder?.labelUrl)
+  const hasStoredLabel = Boolean(
+    selectedOrder &&
+    selectedOrder.deliveryMethod !== 'pickup' &&
+    (selectedOrder.trackingNumber || selectedOrder.labelUrl)
+  )
   const labelDownloadPath = selectedOrder?.labelUrl || null
   const labelUrl = labelDownloadPath
     ? (labelDownloadPath.startsWith('http') ? labelDownloadPath : `${fileBase}${labelDownloadPath}`)
     : null
-  const showGenerateForm = !hasStoredLabel && selectedOrder?.status !== 'shipped'
+  const showGenerateForm =
+    selectedOrder?.deliveryMethod !== 'pickup' &&
+    !hasStoredLabel &&
+    selectedOrder?.status !== 'shipped'
 
   async function downloadImage(imageUrl: string, filename = 'layer.png') {
     try {
@@ -740,8 +757,48 @@ export function Orders() {
                 </div>
               </div>
 
-              {/* Shipping Address */}
-              {selectedOrder.shippingAddress && (
+              {/* Shipping / Pickup Information */}
+              {selectedOrder.deliveryMethod === 'pickup' ? (
+                <div style={{ marginBottom: '24px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600' }}>Pickup Details</h4>
+                  <div className="card">
+                    <div className="detail-row">
+                      <span className="label">Method:</span>
+                      <span className="value">In-store pickup</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Location:</span>
+                      <span className="value">
+                        {selectedOrder.pickupDetails?.name || 'Custom Tees'}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Address:</span>
+                      <span className="value">
+                        {selectedOrder.pickupDetails?.line1 || '30 Mall Drive West'}
+                        {(selectedOrder.pickupDetails?.line2 || '').trim()
+                          ? `, ${selectedOrder.pickupDetails?.line2}`
+                          : ''}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">City / State:</span>
+                      <span className="value">
+                        {(selectedOrder.pickupDetails?.city || 'Jersey City')},{' '}
+                        {selectedOrder.pickupDetails?.state || 'NJ'}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Postal Code:</span>
+                      <span className="value">{selectedOrder.pickupDetails?.postalCode || '07310'}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Country:</span>
+                      <span className="value">{selectedOrder.pickupDetails?.country || 'US'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedOrder.shippingAddress && (
                 <div style={{ marginBottom: '24px' }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600' }}>Shipping Address</h4>
                   <div className="card">
@@ -780,271 +837,276 @@ export function Orders() {
                 </div>
               )}
 
-              {/* Shipping Label */}
-              <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600' }}>UPS Shipping & Tracking</h4>
-                <div className="card">
-                  <div className="detail-row">
-                    <span className="label">Shipment Status:</span>
-                    <span
-                      className="value"
-                      style={{ color: shipmentStatusMeta.color, fontWeight: 600, textTransform: 'capitalize' }}
-                    >
-                      {shipmentStatusMeta.label}
-                    </span>
-                  </div>
-                  {hasStoredLabel ? (
+              {/* Shipping Label / Tracking (UPS) - only when there is a real shipping address (not pickup) */}
+              {selectedOrder.shippingAddress && selectedOrder.deliveryMethod !== 'pickup' && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600' }}>UPS Shipping & Tracking</h4>
+                  <div className="card">
                     <>
                       <div className="detail-row">
-                        <span className="label">Tracking Number:</span>
-                        <span className="value" style={{ wordBreak: 'break-all' }}>
-                          {selectedOrder.trackingNumber || 'Unavailable'}
+                        <span className="label">Shipment Status:</span>
+                        <span
+                          className="value"
+                          style={{ color: shipmentStatusMeta.color, fontWeight: 600, textTransform: 'capitalize' }}
+                        >
+                          {shipmentStatusMeta.label}
                         </span>
                       </div>
-                      <div className="detail-row">
-                        <span className="label">Label File:</span>
-                        {selectedOrder?._id ? (
-                          <a
-                            href={`${apiBase}/shipment/download-label/${selectedOrder._id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={`UPS_Label_${selectedOrder._id.slice(-6)}.pdf`}
-                            className="value"
-                            style={{ color: 'var(--accent, #5b21b6)', fontWeight: 600 }}
-                            onClick={async (e) => {
-                              // Ensure download works with authentication
-                              e.preventDefault()
-                              const token = localStorage.getItem('admin_auth_token')
-                              try {
-                                const response = await fetch(`${apiBase}/shipment/download-label/${selectedOrder._id}`, {
-                                  headers: {
-                                    'Authorization': `Bearer ${token}`,
-                                    'X-Admin-Token': token || '',
-                                  },
-                                  credentials: 'include',
-                                })
-                                if (!response.ok) throw new Error('Download failed')
-                                const blob = await response.blob()
-                                const url = URL.createObjectURL(blob)
-                                const link = document.createElement('a')
-                                link.href = url
-                                link.download = `UPS_Label_${selectedOrder._id.slice(-6)}.pdf`
-                                document.body.appendChild(link)
-                                link.click()
-                                document.body.removeChild(link)
-                                URL.revokeObjectURL(url)
-                              } catch (err) {
-                                console.error('Download error:', err)
-                                setError('Failed to download label')
-                                setTimeout(() => setError(null), 3000)
-                              }
-                            }}
-                          >
-                            Download UPS Label
-                          </a>
-                        ) : (
-                          <span className="value">Not available</span>
-                        )}
-                      </div>
-                      {selectedOrder?.status !== 'shipped' && (
-                        <button
-                          className="primary-btn"
-                          style={{ marginTop: '12px' }}
-                          onClick={handleGenerateLabel}
-                          disabled={labelLoading}
-                        >
-                          {labelLoading ? 'Generating...' : 'Re-generate Label'}
-                        </button>
-                      )}
-                    </>
-                  ) : showGenerateForm ? (
-                    <>
-                      <div
-                        className="grid"
-                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}
-                      >
-                        {PACKAGE_FIELDS.map((field) => (
-                          <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <label style={{ fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{field}</label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={packageForm[field]}
-                              onChange={(e) =>
-                                setPackageForm((prev) => ({
-                                  ...prev,
-                                  [field]: e.target.value,
-                                }))
-                              }
-                              style={{
-                                padding: '8px 10px',
-                                borderRadius: 8,
-                                border: '1px solid var(--border)',
-                                fontSize: 14,
-                              }}
-                            />
+
+                      {hasStoredLabel ? (
+                        <>
+                          <div className="detail-row">
+                            <span className="label">Tracking Number:</span>
+                            <span className="value" style={{ wordBreak: 'break-all' }}>
+                              {selectedOrder.trackingNumber || 'Unavailable'}
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                      <button
-                        className="primary-btn"
-                        style={{ marginTop: '16px' }}
-                        onClick={handleGenerateLabel}
-                        disabled={labelLoading}
-                      >
-                        {labelLoading ? 'Generating...' : 'Generate UPS Label'}
-                      </button>
-                    </>
-                  ) : (
-                    <div className="detail-row">
-                      <span className="label">Label Status:</span>
-                      <span className="value">Order marked as shipped. Label information not available.</span>
-                    </div>
-                  )}
-
-                  {trackingSummary && (
-                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                      <h5 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 600 }}>Latest UPS Scan</h5>
-                      <div className="detail-row">
-                        <span className="label">Message:</span>
-                        <span className="value">{trackingSummary.description || '—'}</span>
-                      </div>
-                      <div className="detail-row">
-                        <span className="label">Last Location:</span>
-                        <span className="value">{trackingSummary.lastLocation || '—'}</span>
-                      </div>
-                      <div className="detail-row">
-                        <span className="label">Estimated Delivery:</span>
-                        <span className="value">{formatDateTime(trackingSummary.estimatedDelivery)}</span>
-                      </div>
-                      <div className="detail-row">
-                        <span className="label">Last Update:</span>
-                        <span className="value">{formatDateTime(trackingSummary.updatedAt)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedOrder?.trackingNumber && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
-                      {canMarkHandoff && (
-                        <button
-                          className="primary-btn"
-                          onClick={handleHandoffToUps}
-                          disabled={handoffLoading}
-                        >
-                          {handoffLoading ? 'Saving...' : 'Mark Handed to UPS'}
-                        </button>
-                      )}
-                      <button
-                        className="primary-btn"
-                        style={{ background: '#f5f5f5', color: '#111', border: '1px solid var(--border)' }}
-                        onClick={handleRefreshTracking}
-                        disabled={trackingLoading}
-                      >
-                        {trackingLoading ? 'Syncing...' : 'Refresh Tracking'}
-                      </button>
-                      <a
-                        href={`${storefrontUrl}/track/${selectedOrder.trackingNumber}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="primary-btn"
-                        style={{
-                          textDecoration: 'none',
-                          background: '#0f172a',
-                          color: '#fff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        Open Tracking Page →
-                      </a>
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: 20 }}>
-                    <h5 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 600 }}>Fulfillment Progress</h5>
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                      {SHIPMENT_STAGES.map((stage, index) => {
-                        const isActive = index <= shipmentStageIndex
-                        const marker = index < shipmentStageIndex ? '✓' : index === shipmentStageIndex ? '●' : '○'
-                        return (
-                          <li
-                            key={stage.key}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 12,
-                              marginBottom: 10,
-                              color: isActive ? '#111' : '#94a3b8',
-                            }}
-                          >
-                            <span style={{ fontWeight: 700, minWidth: 18 }}>{marker}</span>
-                            <div>
-                              <div style={{ fontWeight: 600 }}>{stage.title}</div>
-                              <div style={{ fontSize: 12, color: '#64748b' }}>{stage.hint}</div>
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-
-                  <div style={{ marginTop: 20 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 12,
-                      }}
-                    >
-                      <h5 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>UPS Tracking Timeline</h5>
-                      {selectedOrder?.trackingNumber && (
-                        <button
-                          className="primary-btn"
-                          style={{ background: '#f5f5f5', color: '#111', border: '1px solid var(--border)' }}
-                          onClick={handleRefreshTracking}
-                          disabled={trackingLoading}
-                        >
-                          {trackingLoading ? 'Syncing...' : 'Refresh'}
-                        </button>
-                      )}
-                    </div>
-                    {trackingTimeline.length ? (
-                      <div style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
-                        {trackingTimeline.map((event, index) => (
-                          <div
-                            key={`${event.date}-${event.code}-${index}`}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 10,
-                              border: '1px solid var(--border)',
-                              marginBottom: 10,
-                              background: 'var(--panel)',
-                            }}
-                          >
-                            <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>
-                              {formatDateTime(event.date)}
-                            </div>
-                            <div style={{ fontWeight: 600 }}>
-                              {event.description || event.status || 'Status update'}
-                            </div>
-                            {event.location && (
-                              <div style={{ fontSize: 12, color: '#475569' }}>{event.location}</div>
+                          <div className="detail-row">
+                            <span className="label">Label File:</span>
+                            {selectedOrder?._id ? (
+                              <a
+                                href={`${apiBase}/shipment/download-label/${selectedOrder._id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={`UPS_Label_${selectedOrder._id.slice(-6)}.pdf`}
+                                className="value"
+                                style={{ color: 'var(--accent, #5b21b6)', fontWeight: 600 }}
+                                onClick={async (e) => {
+                                  // Ensure download works with authentication
+                                  e.preventDefault()
+                                  const token = localStorage.getItem('admin_auth_token')
+                                  try {
+                                    const response = await fetch(`${apiBase}/shipment/download-label/${selectedOrder._id}`, {
+                                      headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'X-Admin-Token': token || '',
+                                      },
+                                      credentials: 'include',
+                                    })
+                                    if (!response.ok) throw new Error('Download failed')
+                                    const blob = await response.blob()
+                                    const url = URL.createObjectURL(blob)
+                                    const link = document.createElement('a')
+                                    link.href = url
+                                    link.download = `UPS_Label_${selectedOrder._id.slice(-6)}.pdf`
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+                                    URL.revokeObjectURL(url)
+                                  } catch (err) {
+                                    console.error('Download error:', err)
+                                    setError('Failed to download label')
+                                    setTimeout(() => setError(null), 3000)
+                                  }
+                                }}
+                              >
+                                Download UPS Label
+                              </a>
+                            ) : (
+                              <span className="value">Not available</span>
                             )}
                           </div>
-                        ))}
+                          {selectedOrder?.status !== 'shipped' && (
+                            <button
+                              className="primary-btn"
+                              style={{ marginTop: '12px' }}
+                              onClick={handleGenerateLabel}
+                              disabled={labelLoading}
+                            >
+                              {labelLoading ? 'Generating...' : 'Re-generate Label'}
+                            </button>
+                          )}
+                        </>
+                      ) : showGenerateForm ? (
+                        <>
+                          <div
+                            className="grid"
+                            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}
+                          >
+                            {PACKAGE_FIELDS.map((field) => (
+                              <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <label style={{ fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>{field}</label>
+                                <input
+                                  type="number"
+                                  min="0.1"
+                                  step="0.1"
+                                  value={packageForm[field]}
+                                  onChange={(e) =>
+                                    setPackageForm((prev) => ({
+                                      ...prev,
+                                      [field]: e.target.value,
+                                    }))
+                                  }
+                                  style={{
+                                    padding: '8px 10px',
+                                    borderRadius: 8,
+                                    border: '1px solid var(--border)',
+                                    fontSize: 14,
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            className="primary-btn"
+                            style={{ marginTop: '16px' }}
+                            onClick={handleGenerateLabel}
+                            disabled={labelLoading}
+                          >
+                            {labelLoading ? 'Generating...' : 'Generate UPS Label'}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="detail-row">
+                          <span className="label">Label Status:</span>
+                          <span className="value">Order marked as shipped. Label information not available.</span>
+                        </div>
+                      )}
+
+                      {trackingSummary && (
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                          <h5 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 600 }}>Latest UPS Scan</h5>
+                          <div className="detail-row">
+                            <span className="label">Message:</span>
+                            <span className="value">{trackingSummary.description || '—'}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Last Location:</span>
+                            <span className="value">{trackingSummary.lastLocation || '—'}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Estimated Delivery:</span>
+                            <span className="value">{formatDateTime(trackingSummary.estimatedDelivery)}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Last Update:</span>
+                            <span className="value">{formatDateTime(trackingSummary.updatedAt)}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedOrder?.trackingNumber && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
+                          {canMarkHandoff && (
+                            <button
+                              className="primary-btn"
+                              onClick={handleHandoffToUps}
+                              disabled={handoffLoading}
+                            >
+                              {handoffLoading ? 'Saving...' : 'Mark Handed to UPS'}
+                            </button>
+                          )}
+                          <button
+                            className="primary-btn"
+                            style={{ background: '#f5f5f5', color: '#111', border: '1px solid var(--border)' }}
+                            onClick={handleRefreshTracking}
+                            disabled={trackingLoading}
+                          >
+                            {trackingLoading ? 'Syncing...' : 'Refresh Tracking'}
+                          </button>
+                          <a
+                            href={`${storefrontUrl}/track/${selectedOrder.trackingNumber}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="primary-btn"
+                            style={{
+                              textDecoration: 'none',
+                              background: '#0f172a',
+                              color: '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            Open Tracking Page →
+                          </a>
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 20 }}>
+                        <h5 style={{ margin: '0 0 12px 0', fontSize: 15, fontWeight: 600 }}>Fulfillment Progress</h5>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                          {SHIPMENT_STAGES.map((stage, index) => {
+                            const isActive = index <= shipmentStageIndex
+                            const marker = index < shipmentStageIndex ? '✓' : index === shipmentStageIndex ? '●' : '○'
+                            return (
+                              <li
+                                key={stage.key}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 12,
+                                  marginBottom: 10,
+                                  color: isActive ? '#111' : '#94a3b8',
+                                }}
+                              >
+                                <span style={{ fontWeight: 700, minWidth: 18 }}>{marker}</span>
+                                <div>
+                                  <div style={{ fontWeight: 600 }}>{stage.title}</div>
+                                  <div style={{ fontSize: 12, color: '#64748b' }}>{stage.hint}</div>
+                                </div>
+                              </li>
+                            )
+                          })}
+                        </ul>
                       </div>
-                    ) : (
-                      <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>
-                        No UPS scans yet. Refresh after the first carrier scan.
-                      </p>
-                    )}
+
+                      <div style={{ marginTop: 20 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: 12,
+                          }}
+                        >
+                          <h5 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>UPS Tracking Timeline</h5>
+                          {selectedOrder?.trackingNumber && (
+                            <button
+                              className="primary-btn"
+                              style={{ background: '#f5f5f5', color: '#111', border: '1px solid var(--border)' }}
+                              onClick={handleRefreshTracking}
+                              disabled={trackingLoading}
+                            >
+                              {trackingLoading ? 'Syncing...' : 'Refresh'}
+                            </button>
+                          )}
+                        </div>
+                        {trackingTimeline.length ? (
+                          <div style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
+                            {trackingTimeline.map((event, index) => (
+                              <div
+                                key={`${event.date}-${event.code}-${index}`}
+                                style={{
+                                  padding: '10px 12px',
+                                  borderRadius: 10,
+                                  border: '1px solid var(--border)',
+                                  marginBottom: 10,
+                                  background: 'var(--panel)',
+                                }}
+                              >
+                                <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>
+                                  {formatDateTime(event.date)}
+                                </div>
+                                <div style={{ fontWeight: 600 }}>
+                                  {event.description || event.status || 'Status update'}
+                                </div>
+                                {event.location && (
+                                  <div style={{ fontSize: 12, color: '#475569' }}>{event.location}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>
+                            No UPS scans yet. Refresh after the first carrier scan.
+                          </p>
+                        )}
+                      </div>
+                    </>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Order Items */}
               <div style={{ marginBottom: '24px' }}>

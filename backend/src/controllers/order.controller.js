@@ -69,6 +69,8 @@ export const createOrderFromCart = async (req, res) => {
       shippingCost,
       shippingServiceCode,
       shippingServiceName,
+      deliveryMethod = 'shipping',
+      pickupDetails,
     } = req.body;
 
     // Get user with cart
@@ -231,7 +233,13 @@ export const createOrderFromCart = async (req, res) => {
     }
 
     // Calculate shipping cost (convert to cents if needed, or use as-is if already in cents)
-    const shippingCostInCents = shippingCost ? (shippingCost < 100 ? Math.round(shippingCost * 100) : shippingCost) : 0;
+    const effectiveShippingCost = deliveryMethod === 'pickup' ? 0 : (shippingCost || 0);
+    const shippingCostInCents =
+      effectiveShippingCost > 0
+        ? effectiveShippingCost < 100
+          ? Math.round(effectiveShippingCost * 100)
+          : effectiveShippingCost
+        : 0;
 
     // Calculate final total (subtotal - discount + shipping)
     const total = Math.max(0, subtotal - finalDiscountAmount + shippingCostInCents);
@@ -243,6 +251,8 @@ export const createOrderFromCart = async (req, res) => {
       total,
       paymentMethod,
       shippingAddress,
+      deliveryMethod,
+      pickupDetails: deliveryMethod === 'pickup' ? pickupDetails || null : null,
       coupon: couponData,
       shippingCost: shippingCostInCents,
     };
@@ -261,6 +271,8 @@ export const createOrderFromCart = async (req, res) => {
         total,
         paymentMethod: 'square',
         shippingAddress,
+        deliveryMethod,
+        pickupDetails: deliveryMethod === 'pickup' ? pickupDetails || null : null,
         shippingServiceCode: shippingServiceCode || null,
         shippingServiceName: shippingServiceName || null,
         coupon: couponData

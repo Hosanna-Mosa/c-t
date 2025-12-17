@@ -28,6 +28,7 @@ export default function Checkout() {
   const { cartItems, loading: cartLoading } = useCart()
   const { isAuthenticated } = useAuth()
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'square'>('square')
+  const [deliveryMethod, setDeliveryMethod] = useState<'shipping' | 'pickup'>('shipping')
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
   const [userAddresses, setUserAddresses] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -127,8 +128,18 @@ export default function Checkout() {
     // The shipping calculation useEffect will automatically trigger when userAddresses/selectedAddressId updates
   }
 
-  // Fetch all shipping options when address is selected
+  // Fetch all shipping options when address is selected (for shipping delivery only)
   useEffect(() => {
+    if (deliveryMethod === 'pickup') {
+      // For pickup orders we don't need UPS rates
+      setShippingCost(0)
+      setShippingError(null)
+      setShippingOptions([])
+      setSelectedShippingOption(null)
+      setTransitInfo(null)
+      return
+    }
+
     if (!selectedAddressId) {
       setShippingCost(0)
       setShippingError(null)
@@ -249,7 +260,7 @@ export default function Checkout() {
       .finally(() => {
         setLoadingShipping(false)
       })
-  }, [selectedAddressId, userAddresses, cartItems.length])
+  }, [selectedAddressId, userAddresses, cartItems.length, deliveryMethod])
 
   // Handle shipping option selection
   const handleShippingOptionSelect = (serviceCode: string) => {
@@ -386,36 +397,62 @@ export default function Checkout() {
   }, [subtotal, appliedCoupon?.code])
 
   async function placeOrder() {
-    if (cartItems.length === 0 || !selectedAddressId) return
-    
-    // Try to find the selected address from our cached list; if missing (e.g., just added), refetch once
-    let selectedAddress = userAddresses.find(addr => addr._id === selectedAddressId)
-    if (!selectedAddress) {
-      try {
-        const res = await getMe()
-        const refreshedAddresses = (res as any).data?.addresses || []
-        setUserAddresses(refreshedAddresses)
-        selectedAddress = refreshedAddresses.find((addr: any) => addr._id === selectedAddressId) || null
-      } catch (_) {
-        // ignore, we'll handle error below
+    if (cartItems.length === 0) return
+
+    // For shipping, we still require a valid address
+    let selectedAddress: any = null
+    if (deliveryMethod === 'shipping') {
+      if (!selectedAddressId) {
+        setErr('Please select a valid shipping address')
+        return
+      }
+
+      // Try to find the selected address from our cached list; if missing (e.g., just added), refetch once
+      selectedAddress = userAddresses.find(addr => addr._id === selectedAddressId)
+      if (!selectedAddress) {
+        try {
+          const res = await getMe()
+          const refreshedAddresses = (res as any).data?.addresses || []
+          setUserAddresses(refreshedAddresses)
+          selectedAddress = refreshedAddresses.find((addr: any) => addr._id === selectedAddressId) || null
+        } catch (_) {
+          // ignore, we'll handle error below
+        }
+      }
+      if (!selectedAddress) {
+        setErr('Please select a valid shipping address')
+        return
       }
     }
-    if (!selectedAddress) {
-      setErr('Please select a valid shipping address')
-      return
-    }
-    
+
+    const isPickup = deliveryMethod === 'pickup'
+
+    // Static pickup point details
+    const pickupDetails = isPickup
+      ? {
+          name: 'Custom Tees',
+          line1: '30 Mall Drive West',
+          line2: '',
+          city: 'Jersey City',
+          state: 'NJ',
+          postalCode: '07310',
+          country: 'US',
+        }
+      : null
+
     setLoading(true)
     setErr(null)
     try {
       const res = await createOrderFromCart({ 
         paymentMethod,
+        deliveryMethod,
         shippingAddress: selectedAddress,
+        pickupDetails,
         couponCode: appliedCoupon?.code || null,
         discountAmount: discountAmount > 0 ? discountAmount : null,
-        shippingCost: shippingCost > 0 ? shippingCost : null,
-        shippingServiceCode: selectedShippingOption || null,
-        shippingServiceName: transitInfo?.serviceName || null
+        shippingCost: isPickup ? 0 : shippingCost > 0 ? shippingCost : null,
+        shippingServiceCode: isPickup ? null : (selectedShippingOption || null),
+        shippingServiceName: isPickup ? null : (transitInfo?.serviceName || null)
       })
       const responseData = (res as any).data || res
       
@@ -559,12 +596,55 @@ export default function Checkout() {
                 </CardContent>
               </Card>
 
-              {/* Address Selection */}
-              <AddressSelector 
-                selectedAddressId={selectedAddressId}
-                onAddressSelect={setSelectedAddressId}
-                onAddressUpdate={handleAddressUpdate}
-              />
+              {/* Delivery Method */}
+              <Card className="border-2 shadow-lg">
+                <CardHeader className="p-4 sm:p-6 bg-gradient-to-r from-primary/5 to-transparent">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Truck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    Delivery Method
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 space-y-3">
+                  <RadioGroup
+                    value={deliveryMethod}
+                    onValueChange={(value) => setDeliveryMethod(value as 'shipping' | 'pickup')}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-start space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer">
+                      <RadioGroupItem value="shipping" id="delivery-shipping" className="mt-1" />
+                      <Label htmlFor="delivery-shipping" className="cursor-pointer flex-1">
+                        <div className="font-medium text-sm sm:text-base">Ship to my address</div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          UPS shipping to your selected address. Shipping charges apply.
+                        </p>
+                      </Label>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 border-2 rounded-xl hover:bg-muted/50 transition-all cursor-pointer">
+                      <RadioGroupItem value="pickup" id="delivery-pickup" className="mt-1" />
+                      <Label htmlFor="delivery-pickup" className="cursor-pointer flex-1">
+                        <div className="font-medium text-sm sm:text-base">Pickup from store (no shipping cost)</div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                          Collect your order from our pickup point. No UPS shipping will be created.
+                        </p>
+                        <div className="mt-2 text-xs sm:text-sm text-foreground">
+                          <div className="font-semibold">Custom Tees</div>
+                          <div>30 Mall Drive West</div>
+                          <div>Jersey City, NJ 07310</div>
+                        </div>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+
+              {/* Address Selection (only for shipping) */}
+              {deliveryMethod === 'shipping' && (
+                <AddressSelector 
+                  selectedAddressId={selectedAddressId}
+                  onAddressSelect={setSelectedAddressId}
+                  onAddressUpdate={handleAddressUpdate}
+                />
+              )}
 
               {/* Payment Method */}
               <Card className="border-2 shadow-lg">
@@ -768,12 +848,14 @@ export default function Checkout() {
                   <Button 
                     onClick={placeOrder} 
                     disabled={
-                      loading || 
-                      cartItems.length === 0 || 
-                      !selectedAddressId || 
-                      loadingShipping || 
-                      !selectedShippingOption ||
-                      shippingError !== null
+                      loading ||
+                      cartItems.length === 0 ||
+                      (deliveryMethod === 'shipping' && (
+                        !selectedAddressId ||
+                        loadingShipping ||
+                        !selectedShippingOption ||
+                        shippingError !== null
+                      ))
                     }
                     className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold gradient-hero shadow-lg hover:shadow-xl transition-all duration-200"
                     size="lg"
